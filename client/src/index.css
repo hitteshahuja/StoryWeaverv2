@@ -1,0 +1,168 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-dream-50 text-night-900 font-sans antialiased transition-colors duration-300;
+    min-height: 100vh;
+  }
+  
+  .dark body {
+    @apply bg-night-950 text-white;
+    background: linear-gradient(135deg, #0d0820 0%, #1a1035 50%, #0d1340 100%);
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-night-900;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-dream-400 dark:bg-dream-600 rounded-full;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl 
+           bg-gradient-to-r from-dream-600 to-purple-600 text-white font-semibold
+           hover:from-dream-500 hover:to-purple-500 
+           active:scale-95 transition-all duration-200
+           shadow-dream hover:shadow-dream-lg
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl
+           border border-dream-200 dark:border-dream-500/40 text-dream-600 dark:text-dream-300 font-semibold
+           hover:bg-dream-50 dark:hover:bg-dream-500/10 hover:border-dream-300 dark:hover:border-dream-400
+           active:scale-95 transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-transparent;
+  }
+
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl 
+           bg-gradient-to-r from-gold-500 to-yellow-500 text-night-950 font-bold
+           hover:from-gold-400 hover:to-yellow-400
+           active:scale-95 transition-all duration-200
+           shadow-gold;
+  }
+
+  .card {
+    @apply rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 backdrop-blur-sm
+           shadow-lg dark:shadow-xl p-6 transition-all duration-300;
+  }
+
+  .card-hover {
+    @apply card hover:border-dream-300 dark:hover:border-dream-500/40 hover:shadow-dream
+           hover:-translate-y-1;
+  }
+
+  .input {
+    @apply w-full px-4 py-3 rounded-xl bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10
+           text-night-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 outline-none
+           focus:border-dream-500 focus:ring-2 focus:ring-dream-500/20
+           transition-all duration-200;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold;
+  }
+
+  .badge-gold {
+    @apply badge bg-amber-50 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30;
+  }
+
+  .badge-dream {
+    @apply badge bg-dream-50 dark:bg-dream-500/20 text-dream-600 dark:text-dream-300 border border-dream-200 dark:border-dream-500/30;
+  }
+
+  .section-title {
+    @apply text-3xl md:text-4xl font-bold bg-gradient-to-r from-night-950 to-dream-600 dark:from-white dark:to-dream-300
+           bg-clip-text text-transparent;
+  }
+
+  .stars-bg {
+    @apply fixed inset-0 -z-10 overflow-hidden pointer-events-none;
+  }
+}
+
+/* Star animation */
+.star {
+  position: absolute;
+  @apply bg-dream-400 dark:bg-white opacity-40 dark:opacity-80;
+  border-radius: 50%;
+  animation: twinkle var(--duration, 3s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+/* Shimmer loading skeleton */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(0,0,0,0.04) 25%,
+    rgba(0,0,0,0.1) 50%,
+    rgba(0,0,0,0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.dark .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.1) 50%,
+    rgba(255,255,255,0.04) 75%
+  );
+}
+
+/* Magical sparkle animation */
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 0.8; transform: scale(1.2) rotate(15deg); }
+}
+
+.sparkle {
+  @apply absolute w-1 h-1 bg-white rounded-full pointer-events-none;
+  box-shadow: 0 0 10px 2px rgba(255, 255, 255, 0.8);
+  animation: sparkle var(--duration, 2s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+/* Light leak / Lens flare effect */
+.light-leak {
+  @apply absolute inset-0 pointer-events-none opacity-20 mix-blend-screen;
+  background: radial-gradient(circle at var(--x, 20%) var(--y, 20%), 
+              rgba(255, 200, 150, 0.4) 0%, 
+              transparent 50%);
+  filter: blur(40px);
+}
+
+/* Premium Page Textures */
+.paper-texture {
+  @apply absolute inset-0 pointer-events-none mix-blend-multiply opacity-20;
+  background-image: url('https://www.transparenttextures.com/patterns/natural-paper.png');
+}
+
+.canvas-texture {
+  @apply absolute inset-0 pointer-events-none mix-blend-overlay opacity-30;
+  background-image: url('https://www.transparenttextures.com/patterns/canvas-orange.png');
+}
