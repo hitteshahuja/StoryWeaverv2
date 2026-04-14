@@ -1,13 +1,17 @@
-import React from 'react';
-import { BookOpen, Calendar, ArrowRight, Star } from 'lucide-react';
-import { resolveUrl } from '../lib/api';
+import React, { useState, useEffect } from 'react';
+import he from 'he';
+import { BookOpen, Calendar, ArrowRight, Star, Heart } from 'lucide-react';
+import { resolveImageUrl } from '../lib/api';
 
-export default function BookCard({ book, onClick }) {
-  const firstImage = book.pages?.find(p => p.image_url)?.image_url;
+export default function BookCard({ book, onClick, onToggleFavorite }) {
+  const firstImage = book.pages?.find(p => p.ai_image_url)?.ai_image_url;
+  const [imageSrc, setImageSrc] = useState(null);
 
-  const getStylizedUrl = (url) => {
-    return url;
-  };
+  useEffect(() => {
+    if (firstImage) {
+      resolveImageUrl(firstImage).then(setImageSrc);
+    }
+  }, [firstImage]);
 
   const getFilterStyle = (style) => {
     switch (style) {
@@ -18,6 +22,11 @@ export default function BookCard({ book, onClick }) {
       default:
         return {};
     }
+  };
+
+  const handleFavoriteClick = (e) => {
+    e.stopPropagation();
+    if (onToggleFavorite) onToggleFavorite();
   };
 
   return (
@@ -43,13 +52,17 @@ export default function BookCard({ book, onClick }) {
         <div className="relative w-24 h-32 flex-shrink-0">
           <div className="absolute inset-0 bg-gray-200 dark:bg-white/5 rounded-lg rotate-3 translate-x-1" />
           <div className="absolute inset-0 bg-white dark:bg-night-800 rounded-lg border border-gray-200 dark:border-white/10 shadow-sm overflow-hidden z-10">
-            {firstImage ? (
+            {imageSrc ? (
               <img
-                src={resolveUrl(firstImage)}
+                src={imageSrc}
                 alt={book.title}
                 className="w-full h-full object-cover transition-all duration-500"
                 style={getFilterStyle(book.style)}
               />
+            ) : firstImage ? (
+              <div className="w-full h-full flex items-center justify-center bg-dream-50 dark:bg-dream-500/10">
+                <div className="w-6 h-6 border-2 border-dream-300 border-t-transparent rounded-full animate-spin" />
+              </div>
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-dream-50 dark:bg-dream-500/10">
                 <BookOpen className="w-8 h-8 text-dream-300" />
@@ -60,17 +73,24 @@ export default function BookCard({ book, onClick }) {
 
         <div className="flex-1 py-1 flex flex-col justify-between">
           <div>
-            <div className="flex items-center gap-2 mb-1">
+<div className="flex items-center gap-2 mb-1">
               <span className="px-2 py-0.5 rounded-full bg-dream-500/10 text-dream-600 dark:text-dream-400 text-[10px] font-bold uppercase tracking-wider border border-dream-500/20">
                 {book.page_count}-Page Book
               </span>
-              {book.is_favorite && <Star className="w-3.5 h-3.5 text-gold-400 fill-gold-400" />}
+              {onToggleFavorite && (
+                <button
+                  onClick={handleFavoriteClick}
+                  className={`p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors ${book.is_favorite ? 'text-red-500' : 'text-gray-300 dark:text-gray-600 hover:text-red-500'}`}
+                >
+                  <Heart className={`w-4 h-4 ${book.is_favorite ? 'fill-current' : ''}`} />
+                </button>
+              )}
             </div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-dream-600 dark:group-hover:text-dream-400 transition-colors">
               {book.title}
             </h3>
-            <p className="text-sm text-gray-500 dark:text-white/40 mt-1 line-clamp-1">
-              Starring {book.protagonist_name || 'a little explorer'}
+            <p className="text-sm text-gray-500 dark:text-white/40 mt-1 ">
+              Starring {he.decode(book.protagonist_name || 'a little explorer')}
             </p>
           </div>
 

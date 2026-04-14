@@ -1,10 +1,19 @@
 const OpenAI = require('openai');
 const { Portkey } = require('portkey-ai');
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const portkey = new Portkey({
-  apiKey: process.env.PORTKEY_API_KEY,
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-})
+// During testing, apiKey might be empty until mocked
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'sk-dummy-key-for-tests' });
+const portkey = new Portkey({
+  apiKey: process.env.PORTKEY_API_KEY || 'pk-dummy-key-for-tests',
+  virtualKey: process.env.PORTKEY_VIRTUAL_KEY,
+  config: {
+    cache: {
+      mode: 'simple',
+      max_age: 60 * 60 * 24 * 7,
+    },
+  },
+});
 
 // Model configuration from environment (defaults to current values)
 const MODELS = {
@@ -14,7 +23,36 @@ const MODELS = {
   tts: process.env.MODEL_TTS || 'tts-1',
   ttsVoice: process.env.MODEL_TTS_VOICE || 'nova',
 };
-const SYSTEM_PROMPT = `You are DreamWeaver, a magical and gentle bedtime storyteller for children under 10 years old.
+
+/**
+ * Attempt to repair truncated JSON from AI model output.
+ * Handles unclosed strings, arrays, and objects.
+ */
+function repairJSON(str) {
+  let repaired = str.trim();
+  // Count open/close brackets and braces
+  let openBraces = 0, openBrackets = 0, inString = false, lastChar = '';
+  for (let i = 0; i < repaired.length; i++) {
+    const c = repaired[i];
+    if (c === '"' && lastChar !== '\\') inString = !inString;
+    if (!inString) {
+      if (c === '{') openBraces++;
+      if (c === '}') openBraces--;
+      if (c === '[') openBrackets++;
+      if (c === ']') openBrackets--;
+    }
+    lastChar = c;
+  }
+  // Close unclosed string
+  if (inString) repaired += '"';
+  // Remove trailing comma before closing
+  repaired = repaired.replace(/,\s*$/, '');
+  // Close unclosed brackets/braces
+  while (openBrackets > 0) { repaired += ']'; openBrackets--; }
+  while (openBraces > 0) { repaired += '}'; openBraces--; }
+  return repaired;
+}
+const SYSTEM_PROMPT = `You are DreamWeaver, a gentle and creative bedtime storyteller for children ages 3-10.
 
 STRICT RULES — you must follow every rule with no exceptions:
 1. NEVER include violence, fighting, harm, injury, or anything scary.
@@ -22,15 +60,16 @@ STRICT RULES — you must follow every rule with no exceptions:
 3. NEVER include adult themes, romance, or anything inappropriate for young children.
 4. NEVER use frightening imagery, monsters that cause fear, or jump-scare elements.
 5. ALWAYS give the story a warm, comforting, happy ending.
-6. ALWAYS weave in themes of: wonder, kindness, friendship, nature, and magical adventures.
+6. ALWAYS weave in age-appropriate themes of: wonder, kindness, friendship, curiosity, nature, and playful adventures suitable for the child's age.
 7. ALWAYS end the story with the child (or animal character) feeling safe, loved, and gently drifting off to sleep.
 8. Use soft, soothing, poetic language. Write with warmth and gentleness.
-9. Keep stories to approximately 250-300 words.
-10. Write in second-person ("you") or third-person — never first-person.
-11. Incorporate ALL character names provided, the location, and the specific theme.
-12. If multiple characters are provided, the story MUST feature all of them. Show their unique friendship, teamwork, or bond. Give each character moments to shine.
+9. Keep stories age-appropriate: younger kids (3-5) need simpler words and shorter sentences; older kids (6-10) can handle richer vocabulary and gentle complexity.
+10. Keep stories to approximately 250-300 words.
+11. Write in second-person ("you") or third-person — never first-person.
+12. Incorporate ALL character names provided, the location, and the specific theme.
+13. If multiple characters are provided, the story MUST feature all of them. Show their unique friendship, teamwork, or bond. Give each character moments to shine.
 
-Your stories should feel like a warm hug. Think fireflies, moonbeams, friendly animals, cozy beds, and starlit skies.`;
+Your stories should feel like a warm hug. Think friendly animals, curious exploration, cozy moments, starlit skies, and gentle adventures. Keep it playful and heartwarming, not magical or fantastical.`;
 
 /**
  * Generate a bedtime story based on a photo description and optional details.
@@ -47,7 +86,7 @@ async function generateStory(imageDescription, childName = '', location = '', th
     }
   }
   if (location) userMessage += ` The story takes place in or near ${location}.`;
-  if (theme) userMessage += ` The story's magical theme should be: "${theme}".`;
+  if (theme) userMessage += ` The story's theme should be: "${theme}".`;
   if (customPrompt) userMessage += ` Additional details from the parent: ${customPrompt}`;
 
   console.log(portkey);
@@ -59,17 +98,17 @@ async function generateStory(imageDescription, childName = '', location = '', th
   })
 
 
-  /*   const response = await portkey.chat.completions.create({
-      model: MODELS.textGeneration,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userMessage },
-      ],
-      max_tokens: 600,
-      temperature: 0.8,
-    }); */
+  const response = await portkey.chat.completions.create({
+    model: MODELS.textGeneration,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userMessage },
+    ],
+    max_tokens: 600,
+    temperature: 0.8,
+  });
 
-  const rawContent = promptCompletion.choices[0].message.content.trim();
+  const rawContent = response.choices[0].message.content.trim();
 
   const lines = rawContent.split('\n').filter(Boolean);
   let title = 'A Magical Bedtime Story';
@@ -87,13 +126,38 @@ async function generateStory(imageDescription, childName = '', location = '', th
 }
 
 /**
- * Secondary content moderation check using OpenAI Moderation API.
+ * Content moderation check using Portkey + Gemini 2.0 Flash-Lite.
  */
 async function moderateContent(text) {
-  const result = await portkey.moderations.create({ input: text });
-  const flagged = result.results[0]?.flagged;
-  if (flagged) {
-    throw new Error('Content moderation failed');
+  try {
+    const response = await portkey.chat.completions.create({
+      model: MODELS.textGeneration,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a child safety moderator. Analyze the text for any violence, scary themes, or inappropriate content. If the text is perfectly safe for a 5-year-old, reply ONLY with the word "SAFE". If it is unsafe, reply with "UNSAFE:" followed by a brief explanation.'
+        },
+        { role: 'user', content: text }
+      ],
+      max_tokens: 256,
+      temperature: 0,
+    });
+
+    const result = response.choices[0].message.content.trim();
+    console.log('[MODERATION] Raw result:', result);
+
+    // Reasoning models may wrap the answer in extra text — check if "SAFE" appears
+    // and "UNSAFE" does NOT appear
+    const upperResult = result.toUpperCase();
+    const isSafe = upperResult.includes('SAFE') && !upperResult.includes('UNSAFE');
+
+    if (!isSafe) {
+      console.error('[MODERATION] Content flagged as unsafe:', result);
+      throw new Error('Content moderation failed');
+    }
+  } catch (err) {
+    if (err.message === 'Content moderation failed') throw err;
+    console.warn('[MODERATION] Warning: Portkey moderation check failed/skipped:', err.message);
   }
 }
 
@@ -130,19 +194,21 @@ async function describeImage(imageUrl) {
  * Extract detailed physical features and personality from a child's photo.
  * Returns a rich description that can be used for story and image generation.
  */
-async function extractChildFeatures(imageUrls, childName = 'the child') {
+async function extractChildFeatures(imageUrls, childName = 'the child', childAge = null) {
   // Parse multiple names
-  const names = childName.split(/\s+and\s+|,\s*/i).map(n => n.trim()).filter(Boolean);
+  const safeChildName = typeof childName === 'string' ? childName : 'the child';
+  const names = safeChildName.split(/\s+(?:and|&)\s+|,\s*/i).map(n => n.trim()).filter(Boolean);
   const hasMultiple = names.length > 1;
-  const nameList = hasMultiple ? names.join('", "') : childName;
-  const nameRef = hasMultiple ? `these characters: "${nameList}"` : `the child named "${childName}"`;
+  const nameList = hasMultiple ? names.join('", "') : safeChildName;
+  const ageContext = childAge ? ` (Age: ${childAge})` : '';
+  const nameRef = hasMultiple ? `these characters: "${nameList}"${ageContext}` : `the child named "${safeChildName}"${ageContext}`;
 
   const contentParts = [
     {
       type: 'text',
       text: `Look at the people/characters in these photos carefully. I need you to extract EXACT physical features and personality traits for ${nameRef}.
 
-${hasMultiple ? `There are ${names.length} characters. For EACH character, extract their features separately. If a character named in the list is NOT visibly in the photos (e.g., an imaginary friend or stuffed animal), create a fitting fantasy description based on what the name suggests.
+${hasMultiple ? `There are ${names.length} characters. For EACH character, extract their features separately. If a character named in the list is NOT visibly in the photos (e.g., an imaginary friend or stuffed animal), create a warm description based on what the name suggests.
 
 Return a JSON object with these fields:
 - "characters": An array of objects, one per character. Each object has:
@@ -150,16 +216,16 @@ Return a JSON object with these fields:
   - "physical_description": A detailed 2-3 sentence description of their appearance: hair color, hair style, eye color, skin tone, approximate age, any distinctive features, body type/build. For non-human characters (animals, imaginary friends), describe their appearance creatively.
   - "clothing": Describe what they are wearing (colors, patterns, style). For non-human characters, describe any accessories or notable features.
   - "personality_traits": 3-4 personality traits based on facial expression, posture, body language, or inferred from context
-  - "fantasy_character_description": A rich, detailed 2-sentence description of how this character would appear in a fantasy children's book, preserving their EXACT features while adding magical elements. MUST use the character's name.
+  - "character_description": A rich, detailed 2-sentence description of how this character would appear as the protagonist of a heartwarming children's book, preserving their EXACT features in a warm, inviting style. MUST use the character's name.
 - "group_description": A 1-2 sentence description of how ALL characters look together — their dynamic, relative sizes, and how they relate to each other
-- "combined_fantasy_description": A vivid 2-3 sentence description of ALL characters together in a fantasy scene, suitable for use in image generation prompts. Include each character's name and key features.
+- "combined_character_description": A warm, vivid 2-3 sentence description of ALL characters together in a heartwarming scene, suitable for use in image generation prompts. Include each character's name and key features.
 
 IMPORTANT: Be extremely specific about physical features for each visible character. Generic descriptions are NOT acceptable.` : `Return a JSON object with these fields:
 - "physical_description": A detailed 2-3 sentence description of the child's appearance: hair color, hair style, eye color, skin tone, approximate age, any distinctive features (dimples, freckles, glasses, etc.), body type/build
 - "clothing": Describe what the child is wearing in detail (colors, patterns, style)
 - "personality_traits": Based on facial expression, posture, and body language, describe 3-4 personality traits you observe (e.g., adventurous, curious, joyful, shy, energetic)
 - "interests": Based on the photo context (background, props, clothing), suggest 2-3 things the child might be interested in
-- "fantasy_character_description": Write a rich, detailed 2-sentence description of how "${childName}" would appear as the protagonist of a fantasy children's book. This should paint a vivid picture that preserves their EXACT features while adding magical/fantasy elements. Be very specific about physical appearance. You MUST use the name "${childName}" in this description — do NOT invent a different name.
+- "character_description": Write a rich, detailed 2-sentence description of how "${safeChildName}" would appear as the protagonist of a heartwarming children's book. This should paint a vivid picture that preserves their EXACT features in a warm, inviting style. Be very specific about physical appearance. You MUST use the name "${safeChildName}" in this description — do NOT invent a different name.
 
 IMPORTANT: Be extremely specific about physical features. Generic descriptions like "a young child" are NOT acceptable. Describe exact colors, shapes, and distinguishing characteristics. This will be used to generate illustrations that must look like this specific child.`}`,
     }
@@ -184,33 +250,57 @@ IMPORTANT: Be extremely specific about physical features. Generic descriptions l
         content: contentParts,
       },
     ],
-    max_tokens: 800,
+    max_tokens: 16384,
     temperature: 0.3,
+    metadata: { _cache: { mode: 'none' } },
   });
-  console.log(response);
+  console.log('[extractChildFeatures] finish_reason:', response.choices[0]?.finish_reason, 'tokens:', response.usage);
+
+  // If truncated, retry once with even higher limit
+  if (response.choices[0]?.finish_reason === 'MAX_TOKENS' || response.choices[0]?.finish_reason === 'length') {
+    console.warn('[extractChildFeatures] Output truncated, retrying with higher max_tokens...');
+    response = await portkey.chat.completions.create({
+      model: MODELS.textGeneration,
+      messages: [{ role: 'user', content: contentParts }],
+      max_tokens: 32768,
+      temperature: 0.3,
+      metadata: { _cache: { mode: 'none' } },
+    });
+    console.log('[extractChildFeatures] Retry finish_reason:', response.choices[0]?.finish_reason, 'tokens:', response.usage);
+  }
   const raw = response.choices[0].message.content.trim();
   try {
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    return JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+    // Strip markdown code fences (```json ... ``` or ``` ... ```)
+    let cleaned = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '');
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    let jsonStr = jsonMatch ? jsonMatch[0] : cleaned;
+    try {
+      return JSON.parse(jsonStr);
+    } catch (firstErr) {
+      // Attempt to repair truncated JSON
+      console.warn('[extractChildFeatures] JSON parse failed, attempting repair...', firstErr.message);
+      const repaired = repairJSON(jsonStr);
+      return JSON.parse(repaired);
+    }
   } catch (e) {
     console.error('Failed to parse child features JSON', e, raw);
-    const names = childName.split(/\s+and\s+|,\s*/i).map(n => n.trim()).filter(Boolean);
+    const names = safeChildName.split(/\s+(?:and|&)\s+|,\s*/i).map(n => n.trim()).filter(Boolean);
     if (names.length > 1) {
       return {
         physical_description: 'A group of bright-eyed children with warm smiles',
         clothing: 'Colorful casual clothes',
         personality_traits: ['curious', 'adventurous', 'kind', 'imaginative'],
         interests: ['nature', 'animals', 'stories'],
-        fantasy_character_description: `Young heroes with sparkling eyes and brave hearts — ${names.join(' and ')} — ready for magical adventures together`,
+        character_description: `Wonderful friends with sparkling eyes and kind hearts — ${names.join(' and ')} — ready for fun adventures together`,
         characters: names.map(name => ({
           name,
           physical_description: `A bright-eyed child named ${name} with a warm smile`,
           clothing: 'Colorful casual clothes',
           personality_traits: ['curious', 'adventurous', 'kind'],
-          fantasy_character_description: `${name}, a young hero with sparkling eyes and a brave heart`
+          character_description: `${name}, a bright-eyed child with a warm smile and kind heart`
         })),
         group_description: `${names.join(' and ')} standing together, ready for adventure`,
-        combined_fantasy_description: `${names.join(' and ')} together in a magical world, their friendship lighting up the scene`
+        combined_character_description: `${names.join(' and ')} their friendship lighting up the scene`
       };
     }
     return {
@@ -218,21 +308,22 @@ IMPORTANT: Be extremely specific about physical features. Generic descriptions l
       clothing: 'Colorful casual clothes',
       personality_traits: ['curious', 'adventurous', 'kind', 'imaginative'],
       interests: ['nature', 'animals', 'stories'],
-      fantasy_character_description: 'A young hero with sparkling eyes and a brave heart, ready for magical adventures',
+      character_description: 'A curious and kind child with sparkling eyes, ready for fun adventures',
       character_name_suggestion: 'The Little Explorer'
     };
   }
 }
 
 /**
- * Infer 3 magical story themes based on an image.
+ * Infer 3 child-friendly, age-appropriate story themes based on an image.
+ * Avoid magical/fantasy elements — keep themes grounded in relatable, heartwarming childhood experiences.
  */
 async function analyzeImageForThemes(imageUrl, childName = '', location = '') {
   let contextHint = 'Look at this image.';
   if (childName) {
-    const names = childName.split(/\s+and\s+|,\s*/i).map(n => n.trim()).filter(Boolean);
+    const names = childName.split(/\s+(?:and|&)\s+|,\s*/i).map(n => n.trim()).filter(Boolean);
     if (names.length > 1) {
-      contextHint += ` The story's main characters are ${names.join(' and ')}. Themes should involve their friendship or adventure together.`;
+      contextHint += ` The story's main characters are ${names.join(' and ')}. Themes should involve their friendship, curiosity, or playful adventure together.`;
     } else {
       contextHint += ` The story's main character is named ${childName}.`;
     }
@@ -249,7 +340,7 @@ async function analyzeImageForThemes(imageUrl, childName = '', location = '') {
         content: [
           {
             type: 'text',
-            text: `${contextHint} Suggest exactly 3 magical, child-friendly bedtime story themes inspired by the image and context. Return ONLY a JSON array of 3 strings.`,
+            text: `${contextHint} Suggest exactly 3 child-friendly, age-appropriate bedtime story themes inspired by the image and context. AVOID magical or fantastical themes — focus on heartwarming, relatable themes like friendship, curiosity, exploration, kindness, nature, or cozy domestic adventures. Themes should feel warm and comforting, not fantastical. Return ONLY a JSON array of 3 strings.`,
           },
           { type: 'image_url', image_url: { url: visionUrl, detail: 'low' } },
         ],
@@ -261,10 +352,48 @@ async function analyzeImageForThemes(imageUrl, childName = '', location = '') {
 
   const raw = response.choices[0].message.content.trim();
   try {
-    const jsonMatch = raw.match(/\[[\s\S]*\]/);
-    return JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+    const cleaned = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '');
+    const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+    return JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
   } catch (e) {
-    return ["A magical forest adventure", "Journey to the clouds", "A sleepy animal's quest"];
+    return ["A cozy backyard adventure", "Friendship in nature", "A gentle exploration"];
+  }
+}
+
+/**
+ * Suggest 3 visual styles/filters based on the image mood.
+ */
+async function suggestVisualStyles(imageUrl) {
+  const visionUrl = await urlToDataUrl(imageUrl);
+  const response = await portkey.chat.completions.create({
+    model: MODELS.textGeneration,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: 'Look at this image. Suggest exactly 3 visual art styles (like Watercolor, Pixar-style, etc.) that would match its mood. For each, provide a name, a brief 1-sentence description, an emoji icon, and a CSS filter string (e.g. saturate(1.2) contrast(0.9)). Return ONLY a JSON array of 3 objects with keys: name, description, icon, cssFilter.',
+          },
+          { type: 'image_url', image_url: { url: visionUrl, detail: 'low' } },
+        ],
+      },
+    ],
+    max_tokens: 300,
+    temperature: 0.7,
+  });
+
+  const raw = response.choices[0].message.content.trim();
+  try {
+    const cleaned = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '');
+    const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+    return JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
+  } catch (e) {
+    return [
+      { name: 'Watercolor', description: 'Soft, artistic & flowing', icon: '🎨', cssFilter: 'saturate(1.2) contrast(0.9)' },
+      { name: 'Pixar-style', description: '3D animated & vibrant', icon: '🎬', cssFilter: 'saturate(1.3) contrast(1.1) brightness(1.05)' },
+      { name: 'Classic Crayon', description: 'Hand-drawn with love', icon: '🖍️', cssFilter: 'contrast(1.1) grayscale(0.2)' },
+    ];
   }
 }
 
@@ -273,7 +402,7 @@ async function analyzeImageForThemes(imageUrl, childName = '', location = '') {
  * Handles both single-child and multi-child feature extraction results.
  */
 function buildFeatureBlock(childFeatures, childName) {
-  const names = childName.split(/\s+and\s+|,\s*/i).map(n => n.trim()).filter(Boolean);
+  const names = childName.split(/\s+(?:and|&)\s+|,\s*/i).map(n => n.trim()).filter(Boolean);
   const hasMultiple = names.length > 1;
 
   if (hasMultiple && childFeatures.characters && childFeatures.characters.length > 0) {
@@ -282,13 +411,13 @@ CHARACTER ${i + 1} — ${c.name}:
 - Physical: ${c.physical_description}
 - Clothing: ${c.clothing || 'Colorful casual clothes'}
 - Personality: ${(c.personality_traits || []).join(', ')}
-- Fantasy Description: ${c.fantasy_character_description}`).join('\n');
+- Character Description: ${c.character_description}`).join('\n');
 
     return `
 CHARACTERS' EXTRACTED FEATURES (use these EXACTLY in every image_prompt):
 ${charBlocks}
 ${childFeatures.group_description ? `\n- Group Dynamic: ${childFeatures.group_description}` : ''}
-${childFeatures.combined_fantasy_description ? `\n- Combined Scene Description: ${childFeatures.combined_fantasy_description}` : ''}
+${childFeatures.combined_character_description ? `\n- Combined Scene Description: ${childFeatures.combined_character_description}` : ''}
 
 CRITICAL: ALL ${childFeatures.characters.length} characters MUST appear in EVERY image_prompt and EVERY story page. They are on this adventure TOGETHER.`;
   }
@@ -299,7 +428,7 @@ CHILD'S EXTRACTED FEATURES (use these EXACTLY in every image_prompt):
 - Physical: ${childFeatures.physical_description}
 - Clothing: ${childFeatures.clothing}
 - Personality: ${(childFeatures.personality_traits || []).join(', ')}
-- Fantasy Description: ${childFeatures.fantasy_character_description}
+- Character Description: ${childFeatures.character_description}
 `;
 }
 
@@ -307,7 +436,7 @@ CHILD'S EXTRACTED FEATURES (use these EXACTLY in every image_prompt):
  * Generates a multi-page children's book based on a sequence of images
  */
 async function generateBook(imageUrls,
-  childName = 'the little explorer', location = 'a magical land',
+  childName = 'the little explorer', location = 'a cozy home and garden',
   theme = 'adventure', style = 'Watercolor', pageCount = 10,
   childFeatures = null, childAge = null, customPrompt = '', dedicatedBy = 'Mummy and Daddy',
   coverImageUrl = null) {
@@ -330,20 +459,17 @@ async function generateBook(imageUrls,
   const featureBlock = childFeatures ? buildFeatureBlock(childFeatures, childName) : '';
 
   // Determine protagonist text based on whether there are multiple characters
-  const names = childName.split(/\s+and\s+|,\s*/i).map(n => n.trim()).filter(Boolean);
+  const names = childName.split(/\s+(?:and|&)\s+|,\s*/i).map(n => n.trim()).filter(Boolean);
   const hasMultiple = names.length > 1;
   const protagonistLabel = hasMultiple ? 'Protagonists' : 'Protagonist';
   const protagonistNames = hasMultiple ? names.join('", "') : childName;
-  const characterRef = hasMultiple ? `all ${names.length} characters (${names.join(', ')})` : childName;
   const allNamesList = hasMultiple ? names.join(', ') : childName;
+  const characterRef = hasMultiple ? `all ${names.length} characters (${names.join(', ')})` : childName;
   const closingLine = hasMultiple
-    ? `And ${names.join(' and ')} drifted off to sleep, dreaming of magical adventures together...`
-    : `And ${childName} drifted off to sleep, dreaming of magical adventures...`;
+    ? `And ${names.join(' and ')} drifted off to sleep, smiling softly after their wonderful day together...`
+    : `And ${childName} drifted off to sleep, smiling softly after their wonderful day...`;
 
   const SYSTEM_PROMPT_BOOK = `You are a world-class children's book author and illustrator. 
-Your task is to create a cohesive ${pageCount}-page story based on the provided images.
-The book has a visual style of "${style}". Use descriptive language that evokes this style (e.g., if watercolor, use words like "fluid", "soft", "colorful washes").
-
 ${ageGuidelines}
 
 ${featureBlock}
@@ -351,31 +477,26 @@ ${featureBlock}
 Format your response as a JSON array of ${pageCount} objects. Each object must have:
 - "page": Number (1 to ${pageCount})
 - "type": "title" (page 1), "story" (pages 2 to ${pageCount - 1}), or "conclusion" (page ${pageCount}).
-- "content": The text for that page. Story pages should be approx 40-60 words each. ALL story and conclusion pages MUST be written in rhyming verse — use AABB or ABAB rhyme schemes with simple, catchy rhymes that a child would love. The rhymes should flow naturally and feel musical when read aloud. Example: "The little bear climbed up the hill, / The wind was warm, the air was still. / He found a cave with stars inside, / And spread his golden wings to glide."
-- "image_prompt": A highly detailed prompt for DALL-E 3 that is a DIRECT VISUAL DEPICTION of the scene described in the "content" for this page. The image_prompt must show EXACTLY what is happening in the story text — the same actions, setting, emotions, objects, and characters described in the content. Do NOT generate a generic scene.
-  IMPORTANT: The title page (page 1) MUST have an image_prompt for a beautiful, magical book cover illustration. The conclusion page (page ${pageCount}) MUST have image_prompt set to null — no image for "The End" page.
+- "content": The text for that page. Story pages should be approx 40-60 words each. 
+  STYLE: Write in simple, warm prose. Do NOT force rhymes. Do NOT use forward slashes (/) to separate lines — just use standard sentences.
+- "image_prompt": A highly detailed prompt for DALL-E 3 that is a DIRECT VISUAL DEPICTION of the scene. Include the characters' full physical descriptions (hair color, hairstyle, eyes, clothing) in EVERY prompt.
+  IMPORTANT: The title page (page 1) MUST have an image_prompt for a beautiful cover illustration. The conclusion page (page ${pageCount}) MUST have image_prompt set to null.
 
 Structure:
 - Page 1 (TITLE PAGE): 
-  - "content" must be ONLY the book title. The title MUST be short — 2 to 5 words maximum (e.g. "${hasMultiple ? names.join(' & ') + "'s" : childName + "'s"} Starry Adventure", "The Enchanted Garden"). Do NOT write a full sentence or paragraph — just the title.
-  - "image_prompt": A stunning book cover illustration for a children's book. The cover should depict ${characterRef} in a magical scene that represents the story's theme "${theme}". Use the "${style}" art style. This is a cover image, not a story scene.${hasMultiple ? ` ALL ${names.length} characters must be visible on the cover, showing their friendship.` : ''}
-  - Include a separate field "dedication": "Created by ${dedicatedBy}"
-- Pages 2 to ${pageCount - 1} (STORY PAGES): The heart of the adventure. ${hasMultiple ? `The story MUST feature ALL characters: ${allNamesList}. Show their unique friendship, teamwork, and bond. Give each character moments to shine and dialogue. They should interact with each other naturally.` : `The child's personality should drive the plot.`} Each page 40-60 words with a matching image_prompt.
+  - "content": ONLY the book title (2-5 words, e.g. "${hasMultiple ? names.join(' & ') + "'s" : childName + "'s"} Great Quest").
+  - "image_prompt": A stunning, centered book cover illustration. COMPOSITION: Keep main characters centered with plenty of space around the edges to avoid cropping. The cover should depict ${characterRef} in a warm, heartwarming scene related to "${theme}". Art style: "${style}". Theme: "${theme}".
+  - "dedication": "Created by ${dedicatedBy}"
+- Pages 2 to ${pageCount - 1} (STORY PAGES): The heart of the adventure. ${hasMultiple ? `Feature ALL characters: ${allNamesList}.` : `Show ${childName}'s personality.`}
 - Page ${pageCount} (THE END PAGE):
-  - "content": A short, warm closing line like "${closingLine}"
-  - "image_prompt": null (no image for this page)
+  - "content": "${closingLine}"
+  - "image_prompt": null
 
-${protagonistLabel}: "${protagonistNames}". You MUST use these exact names throughout ALL story content, dialogue, and narration. ${hasMultiple ? `Every story page MUST include all ${names.length} characters interacting together. Never have one character disappear or be absent from a scene — they are always together on this adventure.` : `Never refer to the protagonist generically — always use the name "${childName}".`} Their appearance and personality must stay 100% consistent with the extracted features above.
+${protagonistLabel}: "${protagonistNames}". Use these exact names. Always include their physical traits from the description in every image prompt.
 Setting: "${location}" with a theme of "${theme}".
-Visual Aesthetic: "${style}".
+Art Style: "${style}".
 
-ABSOLUTE RULES FOR IMAGE PROMPTS:
-1. Every image_prompt MUST begin with the full physical description(s) of ${characterRef} so DALL-E draws ${hasMultiple ? 'ALL' : 'THIS'} specific ${hasMultiple ? 'characters' : 'child'}.
-2. Every image_prompt MUST visually depict the EXACT scene described in that page's "content" — same actions, same setting, same objects, same emotions. The image is an illustration of the story text, not a separate scene.
-3. ${hasMultiple ? `ALL characters must appear in EVERY image_prompt (except the conclusion page). They must look IDENTICAL across all pages (same hair, eyes, clothing, build for each).` : `The child must look IDENTICAL on every page (same hair, eyes, clothing, build).`}
-4. Never use generic descriptions. Be specific and scene-accurate.
-
-STRICT: Only return the JSON array. No other text or markdown tags.`;
+STRICT: Only return the JSON array. No other text.`;
 
   const userMessageContent = [
     {
@@ -399,44 +520,92 @@ ${customPrompt ? `\n6. Additional instructions from the parent: ${customPrompt}`
   });
 
   // Convert local URLs to data URLs for AI vision APIs
-  for (let i = 1; i < userMessageContent.length; i++) {
-    if (userMessageContent[i].type === 'image_url') {
-      userMessageContent[i].image_url.url = await urlToDataUrl(userMessageContent[i].image_url.url);
+  // Limit to first 4 images to stay within proxy/model limits while still providing context
+  const limitedImages = userMessageContent.slice(1, 5);
+  for (let i = 0; i < limitedImages.length; i++) {
+    if (limitedImages[i].type === 'image_url') {
+      limitedImages[i].image_url.url = await urlToDataUrl(limitedImages[i].image_url.url);
+      limitedImages[i].image_url.detail = 'low';
     }
   }
 
-  const response = await portkey.chat.completions.create({
-    model: MODELS.textGeneration,
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT_BOOK },
-      { role: 'user', content: userMessageContent },
-    ],
-    max_tokens: 4000,
-    temperature: 0.8,
-  });
+  const fullUserText = `${SYSTEM_PROMPT_BOOK}\n\nUSER REQUEST:\n${userMessageContent[0].text}`;
+  const finalContent = [
+    { type: 'text', text: fullUserText },
+    ...limitedImages
+  ];
 
-  const raw = response.choices[0].message.content.trim();
+  let response;
+  try {
+    response = await portkey.chat.completions.create({
+      model: MODELS.textGeneration,
+      messages: [{ role: 'user', content: finalContent }],
+      max_tokens: 16384,
+      temperature: 0.8,
+    });
+  } catch (err) {
+    response = await portkey.chat.completions.create({
+      model: MODELS.textGeneration,
+      messages: [{ role: 'user', content: `${SYSTEM_PROMPT_BOOK}\n\nUSER REQUEST (Safe Fallback): ${userMessageContent[0].text}` }],
+      max_tokens: 16384,
+      temperature: 0.7,
+    });
+  }
+
+  const raw = response.choices[0]?.message?.content || '';
+
+  // Handle array content (Gemini multimodal responses)
+  let rawText = '';
+  if (typeof raw === 'string') {
+    rawText = raw.trim();
+  } else if (Array.isArray(raw)) {
+    rawText = raw.filter(p => p.type === 'text').map(p => p.text).join('\n').trim();
+  }
+
   let pages = [];
   try {
-    const jsonMatch = raw.match(/\[[\s\S]*\]/);
-    pages = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+    // Robust JSON extraction: find the first '[' and the last ']'
+    let cleaned = rawText.trim();
+    const startIdx = cleaned.indexOf('[');
+    const endIdx = cleaned.lastIndexOf(']');
+
+    if (startIdx === -1 || endIdx === -1 || startIdx >= endIdx) {
+      console.error('[BOOK GEN] No JSON array found in output. Start:', startIdx, 'End:', endIdx);
+      console.error('[BOOK GEN] Raw response snippet:', rawText.substring(0, 1000));
+      throw new Error('No valid story content generated');
+    }
+
+    cleaned = cleaned.substring(startIdx, endIdx + 1);
+
+    // Try to fix common JSON issues (like trailing commas before closing brackets)
+    // This is simple but handles the most common AI JSON hallucination
+    const fixableJson = cleaned
+      .replace(/,\s*\]/g, ']')
+      .replace(/,\s*\}/g, '}');
+
+    pages = JSON.parse(fixableJson);
   } catch (e) {
-    console.error('Failed to parse book JSON', e, raw);
+    console.error('[BOOK GEN] JSON PARSE FAILED:', e.message);
+    console.error('[BOOK GEN] Full raw output for debugging:', rawText);
     throw new Error('Book generation failed - Invalid format');
   }
 
-  // Clamp to requested page count in case AI generated extra pages
-  const clampedPages = pages.slice(0, pageCount);
+  const sanitizedPages = pages.map((page, idx) => ({
+    page: page.page || idx + 1,
+    type: page.type || (page.page === 1 ? 'title' : (idx === pages.length - 1 ? 'conclusion' : 'story')),
+    content: page.content || '',
+    image_prompt: page.image_prompt || '',
+    dedication: page.dedication || null,
+  }));
 
-  // Interleave images into 'story' pages & Sanitize types for DB constraints
+  const clampedPages = sanitizedPages.slice(0, pageCount);
   let imgIdx = 0;
-  // Build character description for image prompts
   const hasMultipleChars = childFeatures?.characters?.length > 1;
   let childDescPrefix = '';
   if (hasMultipleChars) {
-    childDescPrefix = childFeatures.combined_fantasy_description || childFeatures.characters.map(c => c.fantasy_character_description).join('. ');
-  } else if (childFeatures?.fantasy_character_description) {
-    childDescPrefix = childFeatures.fantasy_character_description;
+    childDescPrefix = childFeatures.combined_character_description || childFeatures.characters.map(c => c.character_description).join('. ');
+  } else if (childFeatures?.character_description) {
+    childDescPrefix = childFeatures.character_description;
   }
   // Exclude cover image from story page pool if user selected one
   const storyImageUrls = coverImageUrl ? imageUrls.filter(u => u !== coverImageUrl) : imageUrls;
@@ -463,7 +632,7 @@ ${customPrompt ? `\n6. Additional instructions from the parent: ${customPrompt}`
     if (sanitizedType === 'title') {
       let finalPrompt = p.image_prompt;
       if (!finalPrompt || finalPrompt.length < 50) {
-        finalPrompt = `A beautiful magical book cover illustration in ${style} style for a children's storybook. The cover shows ${allNamesList} in a whimsical scene related to "${theme}". ${hasMultiple ? `All characters (${allNamesList}) must be visible together.` : ''} Child-friendly, vibrant, enchanting.`;
+        finalPrompt = `A beautiful book cover illustration in ${style} style for a children's storybook. The cover shows ${allNamesList} in a warm, heartwarming scene related to "${theme}". ${hasMultiple ? `All characters (${allNamesList}) must be visible together.` : ''} Child-friendly, vibrant, cozy.`;
       }
       return {
         ...p,
@@ -505,40 +674,71 @@ const { v4: uuidv4 } = require('uuid');
 const { saveBase64, urlToDataUrl } = require('./localStorage');
 
 /**
- * Generate a brand-new AI image based on a prompt (DALL-E 3)
+ * Generate a brand-new AI image based on a prompt.
+ * Supports Gemini image models (via Google SDK) and OpenAI DALL-E (via Portkey).
  */
 async function generateAIImage(prompt, style = 'Watercolor') {
+  const fullPrompt = `A beautiful children's book illustration in the precise art style of: ${style}. Vibrant, child-friendly, consistent. NO text, no words, no letters in the image. SCENE DETAILS: ${prompt}. All characters must maintain identical physical features throughout.`;
+
   try {
+    // Gemini image models — use Google SDK directly
+    if (MODELS.imageGeneration.includes('gemini') || MODELS.imageGeneration.includes('imagen')) {
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const modelName = MODELS.imageGeneration.replace(/^@[^/]+\//, '');
+      const model = genAI.getGenerativeModel({ model: modelName });
+
+      let attempts = 0;
+      const maxAttempts = 3;
+
+      while (attempts < maxAttempts) {
+        try {
+          const result = await model.generateContent(fullPrompt);
+          const response = await result.response;
+          const parts = response.candidates?.[0]?.content?.parts;
+
+          if (parts) {
+            for (const part of parts) {
+              if (part.inlineData?.data) {
+                const mime = part.inlineData.mimeType || 'image/png';
+                const ext = mime.includes('jpeg') ? 'jpg' : 'png';
+                const folder = 'generated/images';
+                return await saveBase64(`data:${mime};base64,${part.inlineData.data}`, folder, `${uuidv4()}.${ext}`);
+              }
+            }
+          }
+          break; // If we got here but no image, model didn't return one (don't retry unless it's a fetch error)
+        } catch (err) {
+          attempts++;
+          if (attempts >= maxAttempts) throw err;
+          console.warn(`[IMAGE GEN] Attempt ${attempts} failed, retrying in 2s...`, err.message);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+
+      console.error('[IMAGE GEN] No image in Gemini response');
+      return null;
+    }
+
+    // OpenAI DALL-E uses images.generate via Portkey
     const response = await portkey.images.generate({
       model: MODELS.imageGeneration,
-      prompt: `${prompt}. Art style: ${style}. Vibrant, child-friendly, consistent children's book illustration. All characters must maintain identical physical features throughout. No text, no words, no letters in the image.`,
-      response_format: "b64_json" // Explicitly request b64_json to avoid temporary URLs that expire
+      prompt: fullPrompt,
+      response_format: 'b64_json',
     });
 
-    // Support both direct data (as in standard SDK) and nested body (as in user's reported case)
     const data = response.data || (response.body && response.body.data);
-
-    if (!data || !data[0]) {
-      throw new Error('Incomplete image generation response');
-    }
+    if (!data || !data[0]) throw new Error('Incomplete image generation response');
 
     const firstImage = data[0];
-
-    // If it's a URL, return it (e.g., if response_format was 'url')
-    if (firstImage.url) {
-      return firstImage.url;
-    }
-
-    // If it's base64, save to persistent storage (R2)
+    if (firstImage.url) return firstImage.url;
     if (firstImage.b64_json) {
-      const filename = `${uuidv4()}.png`;
-      return await saveBase64(firstImage.b64_json, 'generated', filename);
+      return await saveBase64(firstImage.b64_json, 'generated/images', `${uuidv4()}.png`);
     }
 
     return null;
   } catch (err) {
-    console.error('[OPENAI IMAGE GEN ERROR]', err);
-    return null; // Fallback to original photo
+    console.error('[IMAGE GEN ERROR]', err.message || err);
+    return null;
   }
 }
 
@@ -563,6 +763,38 @@ module.exports = {
   describeImage,
   analyzeImageForThemes,
   extractChildFeatures,
+  suggestVisualStyles,
   generateAIImage,
-  generateSpeech
+  generateSpeech,
+  generateEmbedding
 };
+
+/**
+ * Generate an embedding vector for text using Gemini's text-embedding-004.
+ * @param {string} text 
+ * @returns {Promise<number[]>}
+ */
+async function generateEmbedding(text) {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: { parts: [{ text }] },
+          outputDimensionality: 768
+        })
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`Embedding API error: ${response.status} ${response.statusText}`);
+    }
+    const data = await response.json();
+    return data.embedding.values;
+  } catch (err) {
+    console.error('[GEMINI EMBEDDING ERROR]', err);
+    return null;
+  }
+}

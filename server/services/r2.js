@@ -13,6 +13,9 @@ const ACCOUNT_ID = ENDPOINT ? new URL(ENDPOINT).hostname.split('.')[0] : '';
 const PUBLIC_BASE = process.env.R2_PUBLIC_URL
   || (ACCOUNT_ID ? `https://pub-${ACCOUNT_ID}.r2.dev` : '');
 
+console.log(`[R2] Public URL base: ${PUBLIC_BASE}`);
+console.log(`[R2] Using bucket: ${BUCKET}`);
+
 const r2 = new S3Client({
   region: 'auto',
   endpoint: ENDPOINT,

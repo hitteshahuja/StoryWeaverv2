@@ -7,7 +7,6 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 
 const usersRouter = require('./routes/users');
-const storiesRouter = require('./routes/stories');
 const stripeRouter = require('./routes/stripe');
 const uploadRouter = require('./routes/upload');
 const booksRouter = require('./routes/books');
@@ -16,10 +15,20 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ─── Security Headers ─────────────────────────────────────────
+const r2Domain = process.env.R2_PUBLIC_URL 
+  ? new URL(process.env.R2_PUBLIC_URL).hostname 
+  : '*.r2.dev';
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      "img-src": ["'self'", "data:", "blob:", r2Domain, "*.r2.dev", "https://*.clerk.com", "https://*.stripe.com"],
+      "connect-src": ["'self'", "https://*.clerk.com", "https://*.stripe.com", "https://generativelanguage.googleapis.com", "*.portkey.ai"],
+    },
+  },
 }));
-
 // ─── CORS ─────────────────────────────────────────────────────
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
@@ -31,19 +40,29 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
-// ─── Stripe webhook MUST use raw body — register BEFORE json() ─
-app.use('/api/stripe/webhook', require('./routes/stripe'));
-
-// ─── JSON Body Parser ─────────────────────────────────────────
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+// ─── JSON Body Parser (Skip for Stripe Webhook) ────────────────
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/stripe/webhook') {
+    next();
+  } else {
+    express.json({ limit: '10mb' })(req, res, next);
+  }
+});
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/stripe/webhook') {
+    next();
+  } else {
+    express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
+  }
+});
 
 // ─── Rate Limiting ────────────────────────────────────────────
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.path === '/users/sync' || req.path === '/users/me',
   message: { error: 'Too many requests, please try again later.' },
 });
 
@@ -60,7 +79,6 @@ app.use('/api/books/generate', generateLimiter);
 
 // ─── Routes ───────────────────────────────────────────────────
 app.use('/api/users', usersRouter);
-app.use('/api/stories', storiesRouter);
 app.use('/api/stripe', stripeRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/books', booksRouter);
@@ -85,9 +103,11 @@ app.use((err, req, res, next) => {
 });
 
 // ─── Start Server ─────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`\n🌙 DreamWeaver API running on http://localhost:${PORT}`);
-  console.log(`   Health: http://localhost:${PORT}/api/health\n`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`\n🌙 DreamWeaver API running on http://localhost:${PORT}`);
+    console.log(`   Health: http://localhost:${PORT}/api/health\n`);
+  });
+}
 
 module.exports = app;

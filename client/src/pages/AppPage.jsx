@@ -7,8 +7,10 @@ import BookPreview from '../components/BookPreview';
 import UpsellModal from '../components/UpsellModal';
 import CreditModal from '../components/CreditModal';
 import StarField from '../components/StarField';
-import { storiesAPI, booksAPI } from '../lib/api';
+import { Zap } from 'lucide-react';
+import { booksAPI } from '../lib/api';
 import { useDbUser } from '../context/UserContext';
+import { FONTS, DEFAULT_FONT, getFontById } from '../config/fonts';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -38,6 +40,7 @@ export default function AppPage() {
   const [styleFilter, setStyleFilter] = useState(availableStyles[0].cssFilter);
   const [pageCount, setPageCount] = useState(10);
   const [selectedBorder, setSelectedBorder] = useState('None');
+  const [selectedFont, setSelectedFont] = useState(DEFAULT_FONT);
   const [childFeatures, setChildFeatures] = useState(null);
   const [extractingFeatures, setExtractingFeatures] = useState(false);
   const [showBookPreview, setShowBookPreview] = useState(false);
@@ -61,7 +64,7 @@ export default function AppPage() {
       if (dbUser.child_name && !childName) setChildName(dbUser.child_name);
       if (dbUser.child_age && !childAge) setChildAge(String(dbUser.child_age));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dbUser]);
 
   // Clamp page count to valid range
@@ -85,8 +88,8 @@ export default function AppPage() {
       if (!location && newPhotos[0].location) setLocation(newPhotos[0].location);
       try {
         const [themeRes, styleRes] = await Promise.all([
-          storiesAPI.analyze({ imageUrl: newPhotos[0].url }),
-          storiesAPI.suggestFilters({ imageUrl: newPhotos[0].url })
+          booksAPI.analyze({ imageUrl: newPhotos[0].url }),
+          booksAPI.suggestFilters({ imageUrl: newPhotos[0].url })
         ]);
 
         setThemes(themeRes.themes || []);
@@ -107,7 +110,11 @@ export default function AppPage() {
       setExtractingFeatures(true);
       try {
         const allImageUrls = updated.map(p => p.url);
-        const featureRes = await storiesAPI.extractFeatures({ imageUrls: allImageUrls, childName });
+        const featureRes = await booksAPI.extractFeatures({
+          imageUrls: allImageUrls,
+          childName,
+          childAge: childAge ? parseInt(childAge, 10) : undefined
+        });
         if (featureRes.features) {
           setChildFeatures(featureRes.features);
         }
@@ -137,10 +144,11 @@ export default function AppPage() {
     setAnalyzing(true);
     setExtractingFeatures(true);
     try {
-      const result = await storiesAPI.refresh({
+      const result = await booksAPI.refresh({
         imageUrl: photos[0].url,
         imageUrls: photos.map(p => p.url),
         childName,
+        childAge: childAge ? parseInt(childAge, 10) : undefined,
         location
       });
 
@@ -184,16 +192,17 @@ export default function AppPage() {
       const result = await booksAPI.generate({
         imageUrls: photos.map(p => p.url),
         childName,
-        childAge: childAge ? parseInt(childAge, 10) : null,
+        childAge: childAge ? parseInt(childAge, 10) : undefined,
         location,
         theme: selectedTheme,
         style: selectedStyle,
         styleFilter,
         borderStyle: selectedBorder,
+        font: selectedFont,
         pageCount,
         customPrompt,
         dedicatedBy: dedicatedBy || undefined,
-        childFeatures,
+        childFeatures: childFeatures || undefined,
         coverImageUrl: coverImage || undefined
       });
 
@@ -218,14 +227,14 @@ export default function AppPage() {
         try {
           const updated = await booksAPI.get(book.id);
           setBook(updated); // Update to grab new images seamlessly
-          
+
           if (!updated.pages?.some(p => p.image_url && !p.ai_image_url)) {
             clearInterval(interval);
           }
         } catch (err) {
           console.error('[Polling Error]', err);
         }
-      }, 5000); 
+      }, 5000);
     }
     return () => clearInterval(interval);
   }, [book?.id]); // Restart polling when book ID changes
@@ -285,12 +294,12 @@ export default function AppPage() {
           const aspectRatio = imgInfo.width / imgInfo.height;
           let targetW = maxBox;
           let targetH = targetW / aspectRatio;
-          
+
           if (targetH > maxBox) {
             targetH = maxBox;
             targetW = targetH * aspectRatio;
           }
-          
+
           const imgX = (pageWidth - targetW) / 2;
           doc.addImage(imgInfo.b64, getImageFormat(imgInfo.b64), imgX, margin + 20, targetW, targetH);
           titleYOffset = margin + 20 + targetH + 40;
@@ -304,7 +313,7 @@ export default function AppPage() {
         doc.setDrawColor(180, 140, 220);
         doc.setLineWidth(2);
         doc.line(pageWidth / 2 - 40, titleY + 20, pageWidth / 2 + 40, titleY + 20);
-        
+
         if (page.dedication) {
           doc.setFont('helvetica', 'italic');
           doc.setFontSize(12);
@@ -324,12 +333,12 @@ export default function AppPage() {
           const aspectRatio = imgInfo.width / imgInfo.height;
           let targetW = contentWidth;
           let targetH = targetW / aspectRatio;
-          
+
           if (targetH > maxHeight) {
             targetH = maxHeight;
             targetW = targetH * aspectRatio;
           }
-          
+
           const imgX = margin + (contentWidth - targetW) / 2;
           doc.addImage(imgInfo.b64, getImageFormat(imgInfo.b64), imgX, margin, targetW, targetH);
           textStartY = margin + targetH + 30;
@@ -349,6 +358,31 @@ export default function AppPage() {
     }
 
     doc.save(`${book.title.replace(/\s+/g, '_')}.pdf`);
+  };
+
+  const handleRefreshImage = async (pageNumber, customPrompt = '') => {
+    if (credits < 2) {
+      setShowCreditModal(true);
+      return;
+    }
+
+    try {
+      const result = await booksAPI.refreshImage(book.id, pageNumber, customPrompt);
+      if (result.success && result.newImageUrl) {
+        setBook(prev => ({
+          ...prev,
+          pages: prev.pages.map(p =>
+            p.page_number === pageNumber
+              ? { ...p, ai_image_url: result.newImageUrl }
+              : p
+          )
+        }));
+        await refreshUser();
+      }
+    } catch (err) {
+      console.error('Failed to refresh image:', err);
+      alert('Failed to refresh image. Please try again.');
+    }
   };
 
   // Logic for favoriting is handled in LibraryPage for individual items
@@ -628,6 +662,25 @@ export default function AppPage() {
                   ))}
                 </div>
               </div>
+
+              <div className="space-y-4 pt-2">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-white/70">Text Font</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {FONTS.map((font) => (
+                    <button
+                      key={font.id}
+                      onClick={() => setSelectedFont(font.id)}
+                      className={`px-3 py-2 rounded-xl border text-sm font-medium transition-all duration-300 text-center
+                                  ${selectedFont === font.id
+                          ? 'border-dream-400 bg-dream-50 dark:bg-dream-500/10 text-dream-600 dark:text-dream-300 shadow-sm'
+                          : 'border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/5 text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/10'}`}
+                      style={{ fontFamily: font.cssFontFamily }}
+                    >
+                      {font.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -674,6 +727,13 @@ export default function AppPage() {
               <>
                 <Sparkles className="w-6 h-6" />
                 Need {pageCount} credits — You have {credits}
+                <a
+                  onClick={() => setShowCreditModal(true)}
+                  className="btn-secondary"
+                >
+                  <Zap className="w-4 h-4" /> Buy More Credits
+                </a>
+
               </>
             ) : (
               <>
@@ -736,6 +796,8 @@ export default function AppPage() {
           book={book}
           onPrint={handlePrint}
           onClose={() => setShowBookPreview(false)}
+          onRefreshImage={handleRefreshImage}
+          credits={credits}
         />
       )}
 

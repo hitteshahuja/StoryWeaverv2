@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { SignInButton, SignOutButton, useAuth, UserButton } from '@clerk/clerk-react';
 import { useDbUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeProvider';
-import { Sparkles, BookOpen, LayoutDashboard, DollarSign, Moon, Sun } from 'lucide-react';
+import { Sparkles, BookOpen, LayoutDashboard, DollarSign, Moon, Sun, Shield } from 'lucide-react';
 
 export default function Navbar() {
   const { isSignedIn } = useAuth();
@@ -34,6 +34,7 @@ export default function Navbar() {
               </>
             )}
             <NavLink to="/pricing" icon={<DollarSign className="w-4 h-4" />}>Pricing</NavLink>
+            <NavLink to="/privacy" icon={<Shield className="w-4 h-4" />}>Privacy</NavLink>
           </div>
 
           {/* Right side */}

@@ -57,7 +57,7 @@ const upload = multer({
  * Returns the URL path: R2 public URL for persistent, relative path for temp.
  */
 async function saveBase64(base64String, folder, filename) {
-  const isPersistent = folder === 'generated' || folder.startsWith('tts');
+  const isPersistent = folder.startsWith('generated') || folder.startsWith('tts');
 
   if (isPersistent) {
     // Upload to R2

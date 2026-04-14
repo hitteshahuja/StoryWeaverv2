@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { RedirectToSignIn, useAuth } from '@clerk/clerk-react';
-import { BookOpen, Heart, Loader2, BookMarked } from 'lucide-react';
-import StoryDisplay from '../components/StoryDisplay';
+import { BookOpen, Heart, Loader2, BookMarked, ChevronLeft, ChevronRight } from 'lucide-react';
+import RelatedBooks from '../components/RelatedBooks';
 import BookCard from '../components/BookCard';
 import BookPreview from '../components/BookPreview';
 import StarField from '../components/StarField';
-import { storiesAPI, booksAPI } from '../lib/api';
-import jsPDF from 'jspdf';
+import { booksAPI } from '../lib/api';
+import { handlePrint as generatePDF } from '../utils/printHelpers';
+
+const PAGE_SIZE = 9;
 
 export default function LibraryPage() {
   const { isSignedIn } = useAuth();
@@ -15,27 +17,24 @@ export default function LibraryPage() {
   const [filter, setFilter] = useState('all'); // 'all' | 'favorites'
   const [selectedBook, setSelectedBook] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-
-  if (!isSignedIn) return <RedirectToSignIn />;
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
+    if (!isSignedIn) return;
     const load = async () => {
       setLoading(true);
       try {
-        const [stories, books] = await Promise.all([
-          filter === 'favorites' ? storiesAPI.favorites() : storiesAPI.list(),
-          booksAPI.list(), // Books don't have favorite filter yet, but I'll filter in JS
-        ]);
+        const booksRes = filter === 'favorites' 
+          ? await booksAPI.favorites(page, PAGE_SIZE) 
+          : await booksAPI.list(page, PAGE_SIZE);
 
-        const filteredBooks = filter === 'favorites' ? books.filter(b => b.is_favorite) : books;
+        const books = Array.isArray(booksRes) ? booksRes : (booksRes.books || []);
         
-        // Merge and tag
-        const merged = [
-          ...stories.map(s => ({ ...s, itemType: 'story' })),
-          ...filteredBooks.map(b => ({ ...b, itemType: 'book' }))
-        ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-        setItems(merged);
+        setItems(books.map(b => ({ ...b, itemType: 'book' })));
+        
+        const totalBooks = Array.isArray(booksRes) ? books.length : (booksRes.total || 0);
+        setTotalCount(totalBooks);
       } catch (err) {
         console.error(err);
       } finally {
@@ -43,7 +42,9 @@ export default function LibraryPage() {
       }
     };
     load();
-  }, [filter]);
+  }, [filter, isSignedIn, page]);
+
+  if (!isSignedIn) return <RedirectToSignIn />;
 
   const handleBookClick = async (id) => {
     setPreviewLoading(true);
@@ -57,137 +58,21 @@ export default function LibraryPage() {
     }
   };
 
-  const handleFavorite = async (id, type) => {
-    if (type === 'story') {
-      const updated = await storiesAPI.toggleFavorite(id);
-      setItems((prev) => prev.map((item) => (item.id === id && item.itemType === 'story' ? { ...updated, itemType: 'story' } : item)));
-    } else {
-      // Books toggle favorite logic is similar (need to implement in API if not there)
-      // For now I'll just skip or update state
+  const handleFavorite = async (id) => {
+    try {
+      const updated = await booksAPI.toggleFavorite(id);
+      setItems((prev) => prev.map((item) => (item.id === id ? { ...updated, itemType: 'book' } : item)));
+    } catch (err) {
+      console.error('Failed to toggle favorite:', err);
     }
   };
 
-  const handleDelete = async (id, type) => {
-    if (type === 'story') {
-      if (!confirm('Delete this story?')) return;
-      await storiesAPI.delete(id);
-      setItems((prev) => prev.filter((item) => !(item.id === id && item.itemType === 'story')));
-    }
-  };
-
-  const handlePrint = async () => {
-    if (!selectedBook) return;
-    const doc = new jsPDF('p', 'pt', 'a4');
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 50;
-    const contentWidth = pageWidth - margin * 2;
-
-    const getImageFormat = (dataUrl) => {
-      if (dataUrl.startsWith('data:image/png')) return 'PNG';
-      if (dataUrl.startsWith('data:image/jpeg') || dataUrl.startsWith('data:image/jpg')) return 'JPEG';
-      if (dataUrl.startsWith('data:image/webp')) return 'WEBP';
-      return 'PNG';
-    };
-
-    const fetchImageAsBase64 = async (url) => {
-      try {
-        const result = await booksAPI.proxyImage(url);
-        return result.data;
-      } catch (err) {
-        console.error('Failed to load image:', url, err);
-        return null;
-      }
-    };
-
-    const getImageDimensions = (base64) => {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => resolve({ width: img.width, height: img.height });
-        img.onerror = () => resolve({ width: 100, height: 100 });
-        img.src = base64;
-      });
-    };
-
-    const imgInfos = await Promise.all(selectedBook.pages.map(async (p) => {
-      const imgUrl = p.ai_image_url || p.image_url;
-      if (!imgUrl) return null;
-      const b64 = await fetchImageAsBase64(imgUrl);
-      if (!b64) return null;
-      const dims = await getImageDimensions(b64);
-      return { b64, ...dims };
-    }));
-
-    for (let i = 0; i < selectedBook.pages.length; i++) {
-      const page = selectedBook.pages[i];
-      const imgInfo = imgInfos[i];
-
-      if (i > 0) doc.addPage();
-
-      if (page.type === 'title') {
-        let titleYOffset = margin + 20;
-        if (imgInfo) {
-          const maxBox = Math.min(contentWidth, 350);
-          const aspectRatio = imgInfo.width / imgInfo.height;
-          let targetW = maxBox;
-          let targetH = targetW / aspectRatio;
-          
-          if (targetH > maxBox) {
-            targetH = maxBox;
-            targetW = targetH * aspectRatio;
-          }
-          
-          const imgX = (pageWidth - targetW) / 2;
-          doc.addImage(imgInfo.b64, getImageFormat(imgInfo.b64), imgX, margin + 20, targetW, targetH);
-          titleYOffset = margin + 20 + targetH + 40;
-        }
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(28);
-        doc.setTextColor(50, 50, 50);
-        const titleY = imgInfo ? titleYOffset : pageHeight / 2 - 40;
-        const titleLines = doc.splitTextToSize(page.content, contentWidth);
-        doc.text(titleLines, pageWidth / 2, titleY, { align: 'center', maxWidth: contentWidth });
-        doc.setDrawColor(180, 140, 220);
-        doc.setLineWidth(2);
-        doc.line(pageWidth / 2 - 40, titleY + 20, pageWidth / 2 + 40, titleY + 20);
-      } else {
-        let textStartY = margin + 40;
-        if (imgInfo) {
-          const maxHeight = 400;
-          const aspectRatio = imgInfo.width / imgInfo.height;
-          let targetW = contentWidth;
-          let targetH = targetW / aspectRatio;
-          
-          if (targetH > maxHeight) {
-            targetH = maxHeight;
-            targetW = targetH * aspectRatio;
-          }
-          
-          const imgX = margin + (contentWidth - targetW) / 2;
-          doc.addImage(imgInfo.b64, getImageFormat(imgInfo.b64), imgX, margin, targetW, targetH);
-          textStartY = margin + targetH + 30;
-        }
-
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(16);
-        doc.setTextColor(60, 60, 60);
-        const textLines = doc.splitTextToSize(page.content, contentWidth);
-        doc.text(textLines, margin, textStartY, { maxWidth: contentWidth, lineHeightFactor: 1.6 });
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.setTextColor(160, 160, 160);
-        doc.text(`Page ${page.page_number}`, pageWidth / 2, pageHeight - 30, { align: 'center' });
-      }
-    }
-
-    doc.save(`${selectedBook.title.replace(/\s+/g, '_')}.pdf`);
-  };
+  const handlePrint = () => generatePDF(selectedBook);
 
   return (
     <div className="relative min-h-screen">
       <StarField />
-      <div className="max-w-3xl mx-auto px-4 py-12">
+      <div className="max-w-5xl mx-auto px-4 py-12">
         {/* Header */}
         <div className="flex items-start justify-between mb-8 flex-wrap gap-4">
           <div>
@@ -208,7 +93,7 @@ export default function LibraryPage() {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setFilter(tab.id)}
+                onClick={() => { setFilter(tab.id); setPage(1); }}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
                             ${filter === tab.id ? 'bg-dream-600 text-white shadow-sm' : 'text-gray-500 dark:text-white/50 hover:text-gray-900 dark:hover:text-white'}`}
               >
@@ -231,28 +116,51 @@ export default function LibraryPage() {
               {filter === 'favorites' ? 'No favorites yet' : 'Your magical library is empty'}
             </p>
             <p className="text-gray-400 dark:text-white/30 text-sm mt-1">
-              {filter === 'favorites' ? 'Heart a story to save it here' : 'Generate your first story or book!'}
+              {filter === 'favorites' ? 'Heart a book to save it here' : 'Generate your first book!'}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6">
-            {items.map((item) => (
-              item.itemType === 'story' ? (
-                <StoryDisplay
-                  key={`story-${item.id}`}
-                  story={item}
-                  onToggleFavorite={(id) => handleFavorite(id, 'story')}
-                  onDelete={(id) => handleDelete(id, 'story')}
-                />
-              ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {items.map((item) => (
                 <BookCard
                   key={`book-${item.id}`}
                   book={item}
                   onClick={() => handleBookClick(item.id)}
+                  onToggleFavorite={() => handleFavorite(item.id)}
                 />
-              )
-            ))}
-          </div>
+              ))}
+            </div>
+
+            {/* AI Discovery Engine - Discovery of similar books based on library content */}
+            {items.length > 0 && (
+              <RelatedBooks 
+                currentBookId={items[0]?.id} 
+              />
+            )}
+
+            {totalCount > PAGE_SIZE && (
+              <div className="flex items-center justify-center gap-2 mt-8">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="p-2 rounded-lg border border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/50 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-white/5"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <span className="text-sm text-gray-500 dark:text-white/50">
+                  Page {page} of {Math.ceil(totalCount / PAGE_SIZE)}
+                </span>
+                <button
+                  onClick={() => setPage(p => p + 1)}
+                  disabled={page >= Math.ceil(totalCount / PAGE_SIZE)}
+                  className="p-2 rounded-lg border border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/50 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-white/5"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+          </>
         )}
 
         {/* Book Preview Modal */}
@@ -266,7 +174,7 @@ export default function LibraryPage() {
 
         {previewLoading && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
-             <Loader2 className="w-10 h-10 text-dream-400 animate-spin" />
+            <Loader2 className="w-10 h-10 text-dream-400 animate-spin" />
           </div>
         )}
       </div>

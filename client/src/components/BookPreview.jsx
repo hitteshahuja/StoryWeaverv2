@@ -1,17 +1,42 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Download, X, Volume2, VolumeX, Loader2 } from 'lucide-react';
-import { booksAPI, resolveUrl } from '../lib/api';
+import { ChevronLeft, ChevronRight, Download, X, Loader2, RefreshCw } from 'lucide-react';
+import { booksAPI, resolveImageUrl } from '../lib/api';
+import { getFontById } from '../config/fonts';
 
-export default function BookPreview({ book, onPrint, onClose }) {
+const ENABLE_TTS = false; // Feature flag - set to true to enable text-to-speech
+
+export default function BookPreview({ book, onPrint, onClose, onRefreshImage, credits }) {
   const [currentPage, setCurrentPage] = useState(0);
+  const [showRefreshConfirm, setShowRefreshConfirm] = useState(false);
+  const [pendingRefreshPage, setPendingRefreshPage] = useState(null);
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [currentImageSrc, setCurrentImageSrc] = useState(null);
+  const [imageLoading, setImageLoading] = useState(false);
   const pages = book.pages || [];
   const totalSpreads = pages.length;
   const current = pages[currentPage];
   const allImagesReady = pages.length > 0 && pages.every(p => p.ai_image_url || !p.image_url);
+  
+  const fontConfig = getFontById(book.font);
+
+  useEffect(() => {
+    const imageUrl = current?.ai_image_url || current?.image_url;
+    if (imageUrl) {
+      setImageLoading(true);
+      resolveImageUrl(imageUrl).then((src) => {
+        setCurrentImageSrc(src);
+        setImageLoading(false);
+      });
+    } else {
+      setCurrentImageSrc(null);
+      setImageLoading(false);
+    }
+  }, [current?.ai_image_url, current?.image_url]);
 
   // TTS state
   const [ttsLoading, setTtsLoading] = useState(false);
   const [playingPage, setPlayingPage] = useState(null);
+  const [refreshingPage, setRefreshingPage] = useState(null);
   const audioRef = useRef(null);
   const audioCache = useRef({});
 
@@ -206,16 +231,25 @@ export default function BookPreview({ book, onPrint, onClose }) {
                 {book.border_style === 'Floral' && <div className="absolute inset-0 pointer-events-none opacity-20 bg-[url('https://www.transparenttextures.com/patterns/floral-paper.png')]" />}
                 {book.border_style === 'Stars' && <div className="absolute inset-0 pointer-events-none opacity-20 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />}
                 
-                {current?.ai_image_url || current?.image_url ? (
+                {currentImageSrc ? (
                   <div className="w-full h-full relative overflow-hidden">
                     <img 
-                      src={resolveUrl(current.ai_image_url || current.image_url)} 
+                      src={currentImageSrc} 
                       alt={`Page ${current.page_number}`}
-                      className="w-full h-full object-cover animate-fade-in transition-all duration-700 relative z-0"
+                      className={`w-full h-full ${current.type === 'title' ? 'object-contain' : 'object-cover'} animate-fade-in transition-all duration-700 relative z-0`}
                       style={getFilterStyle()}
                       key={`img-${currentPage}`}
                     />
                     
+                    {imageLoading && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-[2px]">
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="w-10 h-10 border-4 border-dream-400 border-t-transparent rounded-full animate-spin" />
+                          <p className="text-white text-sm font-bold uppercase tracking-widest animate-pulse">Loading image...</p>
+                        </div>
+                      </div>
+                    )}
+
                     {!current.ai_image_url && current.image_url && (
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-[2px]">
                         <div className="flex flex-col items-center gap-3">
@@ -224,10 +258,31 @@ export default function BookPreview({ book, onPrint, onClose }) {
                         </div>
                       </div>
                     )}
+
+                    {current.ai_image_url && current.type !== 'title' && current.type !== 'conclusion' && (
+                      <button
+                        onClick={() => {
+                          if (credits >= 2) {
+                            setPendingRefreshPage(current.page_number);
+                            setCustomPrompt('');
+                            setShowRefreshConfirm(true);
+                          } else if (onRefreshImage) {
+                            onRefreshImage(current.page_number);
+                          }
+                        }}
+                        disabled={refreshingPage === current.page_number}
+                        className="absolute top-2 right-2 p-2 rounded-lg bg-black/50 text-white/80 hover:bg-dream-500 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed z-20 shadow-lg border border-white/10"
+                        title={credits >= 2 ? 'Regenerate image (2 credits)' : 'Need 2 credits to refresh'}
+                      >
+                        {refreshingPage === current.page_number ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
                     
                     {(book.style === 'Watercolor' || book.style === 'Oil Painting') && <div className="canvas-texture" />}
-                    {book.style === 'Watercolor' && <div className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-40 bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />}
-                    {book.style === 'Classic Crayon' && <div className="absolute inset-0 pointer-events-none mix-blend-overlay opacity-50 bg-[url('https://www.transparenttextures.com/patterns/notebook-dark.png')]" />}
                   </div>
                 ) : current?.type === 'conclusion' ? (
                   <div className="w-full h-full flex items-center justify-center p-8 text-center bg-gradient-to-br from-dream-50 to-purple-50 dark:from-dream-900/20 dark:to-purple-900/20">
@@ -237,8 +292,26 @@ export default function BookPreview({ book, onPrint, onClose }) {
                     </div>
                   </div>
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center p-8 text-center bg-gradient-to-br from-dream-50 to-purple-50 dark:from-dream-900/20 dark:to-purple-900/20">
-                    <p className="text-white/30 text-sm">No image for this page</p>
+                  <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-gradient-to-br from-night-950 to-night-900 border-r border-white/5">
+                    <div className="max-w-xs space-y-6">
+                      <div className="w-20 h-20 mx-auto rounded-3xl bg-dream-500/10 border border-dream-500/20 flex items-center justify-center">
+                        <RefreshCw className="w-10 h-10 text-dream-500/40" />
+                      </div>
+                      <div className="space-y-2">
+                        <h4 className="text-lg font-bold text-white">Missing Illustration</h4>
+                        <p className="text-sm text-white/40">This page doesn't have an image yet. Would you like to generate a matching AI illustration?</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setPendingRefreshPage(current.page_number);
+                          setCustomPrompt('');
+                          setShowRefreshConfirm(true);
+                        }}
+                        className="w-full py-3 px-4 rounded-xl bg-dream-500 text-white font-bold text-sm hover:bg-dream-600 transition-all shadow-lg shadow-dream-500/20 active:scale-95"
+                      >
+                        Generate Image (2 Credits)
+                      </button>
+                    </div>
                   </div>
                 )}
                 <div className="absolute bottom-4 left-4 text-[10px] font-bold text-black/20 dark:text-white/20 uppercase tracking-widest z-10">
@@ -249,7 +322,10 @@ export default function BookPreview({ book, onPrint, onClose }) {
 
             {/* Right Page (Text) */}
             <div className={`w-1/2 h-full relative overflow-hidden ${getBorderStyle(book.border_style).right}`}>
-              <div className="w-full h-full p-8 md:p-12 lg:p-16 flex flex-col justify-center bg-white dark:bg-night-900 relative overflow-hidden">
+              <div 
+                className="w-full h-full p-8 md:p-12 lg:p-16 flex flex-col justify-center bg-white dark:bg-night-900 relative overflow-hidden"
+                style={{ fontFamily: fontConfig.cssFontFamily }}
+              >
                 <div className="paper-texture opacity-10" />
                 <div className="light-leak" style={{ '--x': '80%', '--y': '80%' }} />
                 
@@ -269,7 +345,7 @@ export default function BookPreview({ book, onPrint, onClose }) {
                         </p>
                       )}
                     </div>
-                  ) : current?.type === 'conclusion' ? (
+) : current?.type === 'conclusion' ? (
                     <div className="text-center space-y-8">
                       <span className="badge-dream">Page {current.page_number}</span>
                       <p className="text-2xl md:text-3xl text-gray-700 dark:text-white/90 leading-relaxed font-serif italic">
@@ -287,7 +363,7 @@ export default function BookPreview({ book, onPrint, onClose }) {
                 </div>
 
                 {/* TTS Button - for story and conclusion pages */}
-                {current?.type !== 'title' && current?.content && (
+                {ENABLE_TTS && current?.type !== 'title' && current?.content && (
                   <button
                     onClick={handlePlayTTS}
                     className="absolute bottom-4 right-4 p-2.5 rounded-full bg-dream-500/10 border border-dream-500/20 text-dream-500 dark:text-dream-300 hover:bg-dream-500/20 transition-all hover:scale-110 active:scale-95 z-10"
@@ -336,6 +412,66 @@ export default function BookPreview({ book, onPrint, onClose }) {
           ))}
         </div>
       </div>
+
+      {/* Refresh Confirmation Modal */}
+      {showRefreshConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-night-800 rounded-2xl p-6 max-w-sm mx-4 shadow-2xl border border-gray-200 dark:border-white/10">
+            <div className="text-center">
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-dream-100 dark:bg-dream-500/20 flex items-center justify-center">
+                <RefreshCw className="w-6 h-6 text-dream-500" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Refresh this image?</h3>
+              <p className="text-sm text-gray-500 dark:text-white/60 mb-4">
+                Regenerate this illustration for <span className="font-semibold text-dream-500">2 credits</span>. 
+                Your current image will be replaced.
+              </p>
+              <div className="mb-4">
+                <label className="block text-left text-xs font-medium text-gray-500 dark:text-white/50 mb-1">
+                  How would you like to change the image? (optional)
+                </label>
+                <textarea
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  placeholder="e.g., Make the background brighter, add more flowers, change the colors to warmer tones..."
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-night-900 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-dream-500 resize-none"
+                  rows={3}
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowRefreshConfirm(false);
+                    setPendingRefreshPage(null);
+                    setCustomPrompt('');
+                  }}
+                  className="flex-1 px-4 py-2 rounded-lg border border-gray-200 dark:border-white/10 text-gray-600 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    setShowRefreshConfirm(false);
+                    if (pendingRefreshPage && onRefreshImage) {
+                      setRefreshingPage(pendingRefreshPage);
+                      try {
+                        await onRefreshImage(pendingRefreshPage, customPrompt);
+                      } finally {
+                        setRefreshingPage(null);
+                        setPendingRefreshPage(null);
+                        setCustomPrompt('');
+                      }
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 rounded-lg bg-dream-500 text-white hover:bg-dream-600 transition-colors font-medium"
+                >
+                  Refresh (2 credits)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

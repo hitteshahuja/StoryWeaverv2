@@ -12,7 +12,7 @@ router.post('/create-checkout', requireAuth, async (req, res) => {
   if (!['subscription', 'topup'].includes(type)) {
     return res.status(400).json({ error: 'Invalid checkout type' });
   }
-
+  console.log(clerkId)
   try {
     const userRes = await pool.query('SELECT * FROM users WHERE clerk_id = $1', [clerkId]);
     if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
@@ -21,6 +21,7 @@ router.post('/create-checkout', requireAuth, async (req, res) => {
 
     // Get or create Stripe customer
     let customerId = user.stripe_customer_id;
+    console.log(customerId)
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email,
@@ -52,7 +53,7 @@ router.post('/create-checkout', requireAuth, async (req, res) => {
         metadata: { type: 'topup', clerk_id: clerkId },
       };
     }
-
+    console.log(sessionConfig)
     const session = await stripe.checkout.sessions.create(sessionConfig);
     res.json({ url: session.url });
   } catch (err) {
@@ -72,7 +73,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     console.error('[Stripe Webhook] Signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
-
+  console.log(event)
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -110,6 +111,12 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       case 'invoice.paid': {
         // Monthly subscription renewal: reset credits to 15
         const invoice = event.data.object;
+
+        // Ignore the first invoice as it's processed by checkout.session.completed
+        if (invoice.billing_reason !== 'subscription_cycle') {
+          break;
+        }
+
         const customerId = invoice.customer;
         const userRes = await pool.query('SELECT * FROM users WHERE stripe_customer_id = $1', [customerId]);
         if (userRes.rows.length === 0) break;
@@ -130,8 +137,18 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         const sub = event.data.object;
         const customerId = sub.customer;
         await pool.query(
-          'UPDATE users SET subscription_status = FALSE WHERE stripe_customer_id = $1',
+          'UPDATE users SET subscription_status = FALSE, subscription_cancel_at_period_end = FALSE WHERE stripe_customer_id = $1',
           [customerId]
+        );
+        break;
+      }
+
+      case 'subscription.updated': {
+        const sub = event.data.object;
+        const customerId = sub.customer;
+        await pool.query(
+          'UPDATE users SET subscription_cancel_at_period_end = $1 WHERE stripe_customer_id = $2',
+          [sub.cancel_at_period_end, customerId]
         );
         break;
       }
@@ -144,6 +161,124 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   }
 
   res.json({ received: true });
+});
+
+// POST /api/stripe/cancel-subscription — cancel at period end
+router.post('/cancel-subscription', requireAuth, async (req, res) => {
+  const clerkId = req.auth.userId;
+
+  try {
+    const userRes = await pool.query('SELECT * FROM users WHERE clerk_id = $1', [clerkId]);
+    if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    const user = userRes.rows[0];
+    if (!user.stripe_customer_id) {
+      return res.status(400).json({ error: 'No Stripe customer found' });
+    }
+
+    const subscriptions = await stripe.subscriptions.list({
+      customer: user.stripe_customer_id,
+      status: 'active',
+      limit: 1,
+    });
+
+    if (subscriptions.data.length === 0) {
+      return res.status(400).json({ error: 'No active subscription found' });
+    }
+
+    const sub = subscriptions.data[0];
+    await stripe.subscriptions.update(sub.id, {
+      cancel_at_period_end: true,
+    });
+
+    await pool.query(
+      'UPDATE users SET subscription_cancel_at_period_end = TRUE WHERE clerk_id = $1',
+      [clerkId]
+    );
+
+    res.json({ message: 'Subscription will be canceled at period end' });
+  } catch (err) {
+    console.error('[POST /stripe/cancel-subscription]', err);
+    res.status(500).json({ error: 'Failed to cancel subscription' });
+  }
+});
+
+// POST /api/stripe/reactivate-subscription — reactivate a canceled subscription
+router.post('/reactivate-subscription', requireAuth, async (req, res) => {
+  const clerkId = req.auth.userId;
+
+  try {
+    const userRes = await pool.query('SELECT * FROM users WHERE clerk_id = $1', [clerkId]);
+    if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    const user = userRes.rows[0];
+    if (!user.stripe_customer_id) {
+      return res.status(400).json({ error: 'No Stripe customer found' });
+    }
+
+    const subscriptions = await stripe.subscriptions.list({
+      customer: user.stripe_customer_id,
+      status: 'active',
+      limit: 1,
+    });
+
+    if (subscriptions.data.length === 0) {
+      return res.status(400).json({ error: 'No active subscription found' });
+    }
+
+    const sub = subscriptions.data[0];
+    await stripe.subscriptions.update(sub.id, {
+      cancel_at_period_end: false,
+    });
+
+    await pool.query(
+      'UPDATE users SET subscription_cancel_at_period_end = FALSE WHERE clerk_id = $1',
+      [clerkId]
+    );
+
+    res.json({ message: 'Subscription reactivated' });
+  } catch (err) {
+    console.error('[POST /stripe/reactivate-subscription]', err);
+    res.status(500).json({ error: 'Failed to reactivate subscription' });
+  }
+});
+
+// GET /api/stripe/subscription-status — get current subscription status
+router.get('/subscription-status', requireAuth, async (req, res) => {
+  const clerkId = req.auth.userId;
+  console.log(clerkId)
+  try {
+    const userRes = await pool.query('SELECT subscription_status, stripe_customer_id FROM users WHERE clerk_id = $1', [clerkId]);
+    if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    const { subscription_status: subStatus, stripe_customer_id: customerId } = userRes.rows[0];
+    console.log(subStatus, customerId)
+    if (!customerId || !subStatus) {
+      return res.json({ active: false, cancelAtPeriodEnd: false });
+    }
+
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customerId,
+      status: 'active',
+      limit: 1,
+    });
+    console.log(subscriptions)
+    if (subscriptions.data.length === 0) {
+      return res.json({ active: false, cancelAtPeriodEnd: false });
+    }
+
+    const sub = subscriptions.data[0];
+    const periodEnd = sub.cancel_at ? new Date(sub.cancel_at * 1000) : null;
+    const periodEndStr = periodEnd && !isNaN(periodEnd.getTime()) ? periodEnd.toISOString() : null;
+    res.json({
+      active: true,
+      cancelAtPeriodEnd: sub.cancel_at_period_end,
+      currentPeriodEnd: periodEndStr,
+    });
+  } catch (err) {
+    console.error('[GET /stripe/subscription-status]', err);
+    res.json({ active: false, cancelAtPeriodEnd: false });
+  }
 });
 
 module.exports = router;

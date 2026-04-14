@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { SignInButton, useAuth } from '@clerk/clerk-react';
 import { Check, Sparkles, Volume2, Lock, Star, Zap, CreditCard, ArrowRight, Loader2 } from 'lucide-react';
 import StarField from '../components/StarField';
 import { stripeAPI } from '../lib/api';
+import { useDbUser } from '../context/UserContext';
 
 const PLANS = [
   {
     name: 'Free',
-    price: '$0',
+    price: '£0',
     period: '',
     description: 'Perfect for trying DreamWeaver',
     credits: '3 Welcome Credits',
@@ -21,11 +22,11 @@ const PLANS = [
       'Story Library',
       'Night Mode UI',
     ],
-    missing: ['Text-to-Speech', 'Private Story Vault', 'Priority generation'],
+    missing: [],
   },
   {
     name: 'Premium',
-    price: '$9.99',
+    price: '£7.99',
     period: '/month',
     description: 'The full bedtime experience',
     credits: '15 credits/month',
@@ -38,15 +39,12 @@ const PLANS = [
       'Photo-to-story AI',
       'Story Library',
       'Night Mode UI',
-      'Text-to-Speech 🔊',
-      'Private Story Vault 🔒',
-      'Priority AI generation',
     ],
     missing: [],
   },
   {
     name: 'Top-up',
-    price: '$3.00',
+    price: '£3.00',
     period: '',
     description: 'Just need a few more stories?',
     credits: '5 Credits, one-time',
@@ -67,6 +65,8 @@ const PLANS = [
 export default function PricingPage() {
   const { isSignedIn } = useAuth();
   const [loading, setLoading] = useState(null);
+  const { dbUser, refreshUser } = useDbUser();
+  const [statusLoading, setStatusLoading] = useState(true);
 
   const handleCheckout = async (type) => {
     if (!isSignedIn) return;
@@ -79,6 +79,8 @@ export default function PricingPage() {
       setLoading(null);
     }
   };
+  const isSubscribed = dbUser?.subscription_status;
+
 
   return (
     <div className="relative min-h-screen">
@@ -167,7 +169,7 @@ export default function PricingPage() {
 
               {/* CTA */}
               {plan.type === null ? (
-                isSignedIn ? (
+                isSignedIn && !isSubscribed ? (
                   <div className="btn-secondary text-center text-sm py-2.5 cursor-default">
                     Current Plan (Free)
                   </div>
@@ -180,13 +182,21 @@ export default function PricingPage() {
                 )
               ) : isSignedIn ? (
                 <button
-                  onClick={() => handleCheckout(plan.type)}
+                  onClick={() => {
+                    if (isSubscribed) {
+                      // User is subscribed → go to manage subscription
+                      window.location.href = '/dashboard';
+                    } else {
+                      // Not subscribed → checkout
+                      handleCheckout(plan.type);
+                    }
+                  }}
                   disabled={loading !== null}
-                  className={`w-full text-sm py-3 ${plan.name === 'Premium' ? 'btn-gold' : 'btn-primary'}`}
+                  className={`w-full text-sm py-3 ${plan.name === 'Premium' && !isSubscribed ? 'btn-gold' : 'btn-secondary'}`}
                 >
                   {loading === plan.type
                     ? <Loader2 className="w-4 h-4 animate-spin" />
-                    : <>{plan.name === 'Premium' ? <Star className="w-4 h-4" /> : <Zap className="w-4 h-4" />} {plan.cta}</>
+                    : <>{plan.name === 'Premium' ? <Star className="w-4 h-4" /> : <Zap className="w-4 h-4" />} {plan.name === 'Premium' ? isSubscribed ? 'Manage Subscription' : plan.cta : plan.cta}</>
                   }
                 </button>
               ) : (
