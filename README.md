@@ -5,9 +5,20 @@ AI-powered bedtime story generator for children. Upload a photo → get a person
 ## Tech Stack
 - **Frontend**: React + Vite + Tailwind CSS 3 + Clerk Auth
 - **Backend**: Node.js + Express + PostgreSQL
-- **AI**: OpenAI GPT-4o-mini (story generation + vision + moderation)
+- **AI Stack**: Multi-provider LLM orchestration via [Portkey](https://portkey.ai/)
 - **Payments**: Stripe (subscriptions + one-time top-ups)
-- **Storage**: Cloudinary (image uploads)
+- **Database**: PostgreSQL (Neon) with `pgvector` for RAG
+- **Storage**: Cloudflare R2 + Cloudinary
+
+## AI Model Architecture
+DreamWeaver uses a hybrid AI stack to balance speed, cost, and high-quality generation:
+
+- **Text Generation**: `gemini-2.5-flash-lite` (via Portkey) — High-speed, child-friendly story generation.
+- **Image Generation**: `gemini-3.1-flash-image-preview` — Creates custom illustrations for every page.
+- **Vision & Analysis**: `gpt-4o-mini` — Analyzes uploaded photos to extract character features and themes.
+- **RAG & Discovery**: `text-embedding-004` (Gemini) — Powers the "Similar Books" search using vector embeddings.
+- **Audio (TTS)**: `tts-1` (`ballad` voice) — High-quality text-to-speech for reading along.
+- **Style Inversion**: `gemini-3-pro-image-preview` — Adapts generated images to user-selected artistic styles.
 
 ## Quick Start
 
