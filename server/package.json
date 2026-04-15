@@ -34,7 +34,7 @@
     "redis": "^5.11.0",
     "redis-cli": "^2.1.2",
     "sharp": "^0.34.5",
-    "stripe": "^20.4.1",
+    "stripe": "^22.0.1",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

@@ -40,16 +40,28 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
+// ─── Stripe Webhook Test Route ─────────────────────────────────
+app.get('/api/stripe/test-webhook', (req, res) => {
+  res.json({ message: 'Webhook endpoint is reachable' });
+});
+
 // ─── JSON Body Parser (Skip for Stripe Webhook) ────────────────
+const skipJsonParsing = (url) => 
+  url.startsWith('/api/stripe/webhook') || 
+  url.startsWith('/api/stripe/test-');
+
 app.use((req, res, next) => {
-  if (req.originalUrl === '/api/stripe/webhook') {
+  if (req.originalUrl.includes('stripe')) {
+    console.log(`[REQUEST] ${req.method} ${req.originalUrl} - skipping parsing: ${skipJsonParsing(req.originalUrl)}`);
+  }
+  if (skipJsonParsing(req.originalUrl)) {
     next();
   } else {
     express.json({ limit: '10mb' })(req, res, next);
   }
 });
 app.use((req, res, next) => {
-  if (req.originalUrl === '/api/stripe/webhook') {
+  if (skipJsonParsing(req.originalUrl)) {
     next();
   } else {
     express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);

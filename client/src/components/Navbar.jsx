@@ -3,7 +3,7 @@ import { SignInButton, SignOutButton, useAuth, UserButton } from '@clerk/clerk-r
 import { useDbUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeProvider';
 import { Sparkles, BookOpen, LayoutDashboard, DollarSign, Moon, Sun, Shield } from 'lucide-react';
-
+import logo from '../assets/dreamweaverlogo3.png';
 export default function Navbar() {
   const { isSignedIn } = useAuth();
   const { dbUser } = useDbUser();
@@ -16,8 +16,7 @@ export default function Navbar() {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 group">
             <div className="relative">
-              <Moon className="w-7 h-7 text-dream-400 group-hover:text-dream-300 transition-colors" />
-              <Sparkles className="w-3 h-3 text-gold-400 absolute -top-1 -right-1 animate-twinkle" />
+              <img src={logo} alt="Logo" height={48} width={48} />
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-dream-300 to-purple-300 bg-clip-text text-transparent">
               DreamWeaver

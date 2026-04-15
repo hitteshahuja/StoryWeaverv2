@@ -78,6 +78,7 @@ export const booksAPI = {
 
 export const stripeAPI = {
   createCheckout: (type) => api.post('/api/stripe/create-checkout', { type }).then((r) => r.data),
+  createPortal: () => api.post('/api/stripe/create-subscription-portal').then((r) => r.data),
   cancelSubscription: () => api.post('/api/stripe/cancel-subscription').then((r) => r.data),
   reactivateSubscription: () => api.post('/api/stripe/reactivate-subscription').then((r) => r.data),
   getSubscriptionStatus: () => api.get('/api/stripe/subscription-status').then((r) => r.data),

@@ -22,6 +22,8 @@ const MODELS = {
   imageGeneration: process.env.MODEL_IMAGE_GENERATION || '@openai/gpt-image-1',
   tts: process.env.MODEL_TTS || 'tts-1',
   ttsVoice: process.env.MODEL_TTS_VOICE || 'nova',
+  moderation: process.env.MODEL_MODERATION || '@gemini/gemini-2.0-flash-lite',
+  themeAnalysis: process.env.MODEL_THEME_ANALYSIS || '@gemini/gemini-2.0-flash-lite',
 };
 
 /**
@@ -131,7 +133,7 @@ async function generateStory(imageDescription, childName = '', location = '', th
 async function moderateContent(text) {
   try {
     const response = await portkey.chat.completions.create({
-      model: MODELS.textGeneration,
+      model: MODELS.moderation,
       messages: [
         {
           role: 'system',
@@ -243,7 +245,7 @@ IMPORTANT: Be extremely specific about physical features. Generic descriptions l
   }
 
   const response = await portkey.chat.completions.create({
-    model: MODELS.textGeneration,
+    model: MODELS.themeAnalysis,
     messages: [
       {
         role: 'user',
@@ -254,6 +256,7 @@ IMPORTANT: Be extremely specific about physical features. Generic descriptions l
     temperature: 0.3,
     metadata: { _cache: { mode: 'none' } },
   });
+  console.log(response.choices[0].message.content)
   console.log('[extractChildFeatures] finish_reason:', response.choices[0]?.finish_reason, 'tokens:', response.usage);
 
   // If truncated, retry once with even higher limit
@@ -271,11 +274,33 @@ IMPORTANT: Be extremely specific about physical features. Generic descriptions l
   const raw = response.choices[0].message.content.trim();
   try {
     // Strip markdown code fences (```json ... ``` or ``` ... ```)
-    let cleaned = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '');
+    let cleaned = raw.replace(/^```(?:json)?\n?\n?/i, '').replace(/\n?```\s*$/i, '');
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     let jsonStr = jsonMatch ? jsonMatch[0] : cleaned;
     try {
-      return JSON.parse(jsonStr);
+      const result = JSON.parse(jsonStr);
+      
+      // Normalize personality_traits to always be an array
+      const normalizeTraits = (traits) => {
+        if (!traits) return [];
+        if (Array.isArray(traits)) return traits;
+        if (typeof traits === 'string') {
+          return traits.split(',').map(t => t.trim()).filter(Boolean);
+        }
+        return [];
+      };
+      
+      if (result.personality_traits) {
+        result.personality_traits = normalizeTraits(result.personality_traits);
+      }
+      if (result.characters) {
+        result.characters = result.characters.map(c => ({
+          ...c,
+          personality_traits: normalizeTraits(c.personality_traits)
+        }));
+      }
+      
+      return result;
     } catch (firstErr) {
       // Attempt to repair truncated JSON
       console.warn('[extractChildFeatures] JSON parse failed, attempting repair...', firstErr.message);
@@ -333,7 +358,7 @@ async function analyzeImageForThemes(imageUrl, childName = '', location = '') {
   const visionUrl = await urlToDataUrl(imageUrl);
 
   const response = await portkey.chat.completions.create({
-    model: MODELS.textGeneration,
+    model: MODELS.themeAnalysis,
     messages: [
       {
         role: 'user',
@@ -346,7 +371,7 @@ async function analyzeImageForThemes(imageUrl, childName = '', location = '') {
         ],
       },
     ],
-    max_tokens: 100,
+    max_tokens: 3000,
     temperature: 0.7,
   });
 
@@ -402,16 +427,30 @@ async function suggestVisualStyles(imageUrl) {
  * Handles both single-child and multi-child feature extraction results.
  */
 function buildFeatureBlock(childFeatures, childName) {
+  const ensureArray = (val) => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+      try {
+        const parsed = JSON.parse(val);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
   const names = childName.split(/\s+(?:and|&)\s+|,\s*/i).map(n => n.trim()).filter(Boolean);
   const hasMultiple = names.length > 1;
 
   if (hasMultiple && childFeatures.characters && childFeatures.characters.length > 0) {
     const charBlocks = childFeatures.characters.map((c, i) => `
 CHARACTER ${i + 1} — ${c.name}:
-- Physical: ${c.physical_description}
+- Physical: ${c.physical_description || 'Default child appearance'}
 - Clothing: ${c.clothing || 'Colorful casual clothes'}
-- Personality: ${(c.personality_traits || []).join(', ')}
-- Character Description: ${c.character_description}`).join('\n');
+- Personality: ${ensureArray(c.personality_traits).join(', ')}
+- Character Description: ${c.character_description || ''}`).join('\n');
 
     return `
 CHARACTERS' EXTRACTED FEATURES (use these EXACTLY in every image_prompt):
@@ -425,10 +464,10 @@ CRITICAL: ALL ${childFeatures.characters.length} characters MUST appear in EVERY
   // Single child fallback
   return `
 CHILD'S EXTRACTED FEATURES (use these EXACTLY in every image_prompt):
-- Physical: ${childFeatures.physical_description}
-- Clothing: ${childFeatures.clothing}
-- Personality: ${(childFeatures.personality_traits || []).join(', ')}
-- Character Description: ${childFeatures.character_description}
+- Physical: ${childFeatures.physical_description || 'Default child appearance'}
+- Clothing: ${childFeatures.clothing || 'Colorful casual clothes'}
+- Personality: ${ensureArray(childFeatures.personality_traits).join(', ')}
+- Character Description: ${childFeatures.character_description || ''}
 `;
 }
 

@@ -491,6 +491,18 @@ router.post(
       if (currentBookRes.rows.length === 0) return res.status(404).json({ error: 'Book not found' });
       let embedding = currentBookRes.rows[0].embedding;
 
+      // Fix malformed embedding if it's stored as '"[...]"' instead of '[...]'
+      if (embedding && typeof embedding === 'string') {
+        if (embedding.startsWith('"') && embedding.endsWith('"')) {
+          try {
+            embedding = JSON.parse(embedding);
+            console.log('[RELATED] Repaired malformed embedding');
+          } catch (e) {
+            embedding = null;
+          }
+        }
+      }
+
       // Backwards compatibility: Generate embedding on the fly if it's an older book
       if (!embedding) {
         const firstPageRes = await pool.query(
@@ -502,23 +514,27 @@ router.post(
 
         embedding = await generateEmbedding(`${bookTitle}. ${firstStoryContent}`);
 
-        // Save it for future use
+        // Save it for future use - store as proper PostgreSQL vector literal
         if (embedding) {
-          await pool.query('UPDATE books SET embedding = $1 WHERE id = $2', [JSON.stringify(embedding), bookId]);
+          const embeddingVector = Array.isArray(embedding) ? embedding : JSON.parse(embedding);
+          // PostgreSQL vector expects: '[1,2,3]' not '"[1,2,3]"'
+          const vectorLiteral = JSON.stringify(embeddingVector);
+          await pool.query('UPDATE books SET embedding = $1::vector WHERE id = $2', [vectorLiteral, bookId]);
         } else {
           // If generation fails (e.g. rate limit), just gracefully return no related books instead of 404
           return res.json([]);
         }
       }
 
+      const embeddingStr = Array.isArray(embedding) ? JSON.stringify(embedding) : embedding;
       const relatedRes = await pool.query(
         `SELECT id, title, cover_image_url as image_url, 
-                (1 - (embedding <=> $1)) * 100 as similarity
+                (1 - (embedding::vector <=> $1::vector)) * 100 as similarity
          FROM books
          WHERE id != $2 AND is_public = true AND embedding IS NOT NULL
-         ORDER BY embedding <=> $1
+         ORDER BY embedding::vector <=> $1::vector
          LIMIT 4`,
-        [embedding, bookId]
+        [embeddingStr, bookId]
       );
 
       // Set Cache for related books (1 hour TTL)

@@ -5,6 +5,7 @@ import RelatedBooks from '../components/RelatedBooks';
 import BookCard from '../components/BookCard';
 import BookPreview from '../components/BookPreview';
 import StarField from '../components/StarField';
+import Footer from '../components/Footer';
 import { booksAPI } from '../lib/api';
 import { handlePrint as generatePDF } from '../utils/printHelpers';
 
@@ -178,6 +179,8 @@ export default function LibraryPage() {
           </div>
         )}
       </div>
+
+      <Footer />
     </div>
   );
 }

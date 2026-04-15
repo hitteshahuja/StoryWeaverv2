@@ -7,6 +7,7 @@ import BookPreview from '../components/BookPreview';
 import UpsellModal from '../components/UpsellModal';
 import CreditModal from '../components/CreditModal';
 import StarField from '../components/StarField';
+import Footer from '../components/Footer';
 import { Zap } from 'lucide-react';
 import { booksAPI } from '../lib/api';
 import { useDbUser } from '../context/UserContext';
@@ -479,15 +480,17 @@ export default function AppPage() {
                   </p>
                   {childFeatures.characters && childFeatures.characters.length > 1 ? (
                     <div className="space-y-4">
-                      {childFeatures.characters.map((char, i) => (
+                      {childFeatures.characters.map((char, i) => {
+                        const traits = Array.isArray(char.personality_traits) ? char.personality_traits : [];
+                        return (
                         <div key={i} className="space-y-2">
                           <p className="text-sm font-bold text-gray-800 dark:text-white/90">{char.name}</p>
                           <p className="text-xs text-gray-600 dark:text-white/70 leading-relaxed">
                             {char.fantasy_character_description}
                           </p>
-                          {char.personality_traits?.length > 0 && (
+                          {traits.length > 0 && (
                             <div className="flex flex-wrap gap-1.5">
-                              {char.personality_traits.map((trait, j) => (
+                              {traits.map((trait, j) => (
                                 <span key={j} className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-dream-100 dark:bg-dream-500/15 text-dream-700 dark:text-dream-300 border border-dream-200/50 dark:border-dream-500/10">
                                   {trait}
                                 </span>
@@ -495,22 +498,26 @@ export default function AppPage() {
                             </div>
                           )}
                         </div>
-                      ))}
+                      );
+                      })}
                     </div>
                   ) : (
                     <>
                       <p className="text-sm text-gray-700 dark:text-white/80 leading-relaxed">
                         {childFeatures.fantasy_character_description}
                       </p>
-                      {childFeatures.personality_traits?.length > 0 && (
+                      {(() => {
+                        const traits = Array.isArray(childFeatures.personality_traits) ? childFeatures.personality_traits : [];
+                        return traits.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5 pt-1">
-                          {childFeatures.personality_traits.map((trait, i) => (
+                          {traits.map((trait, i) => (
                             <span key={i} className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-dream-100 dark:bg-dream-500/15 text-dream-700 dark:text-dream-300 border border-dream-200/50 dark:border-dream-500/10">
                               {trait}
                             </span>
                           ))}
                         </div>
-                      )}
+                      ) : null;
+                      })()}
                     </>
                   )}
                 </div>
@@ -803,6 +810,8 @@ export default function AppPage() {
 
       {showCreditModal && <CreditModal onClose={() => setShowCreditModal(false)} />}
       {showUpsell && <UpsellModal childName={childName || 'your child'} onClose={() => setShowUpsell(false)} />}
+
+      <Footer />
     </div>
   );
 }

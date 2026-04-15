@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth, SignInButton } from '@clerk/clerk-react';
 import { Sparkles, Moon, BookOpen, Shield, Zap, Stars } from 'lucide-react';
 import StarField from '../components/StarField';
+import Footer from '../components/Footer';
 
 export default function LandingPage() {
   const { isSignedIn } = useAuth();
@@ -164,6 +165,8 @@ export default function LandingPage() {
           )}
         </div>
       </section>
+
+      <Footer />
     </div>
   );
 }

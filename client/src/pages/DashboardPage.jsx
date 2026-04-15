@@ -1,7 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { RedirectToSignIn, useAuth } from '@clerk/clerk-react';
-import { Sparkles, CreditCard, LayoutDashboard, Loader2, RefreshCw, ArrowUpRight } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Sparkles, CreditCard, LayoutDashboard, Loader2, RefreshCw, ArrowUpRight, Settings, CheckCircle2 } from 'lucide-react';
 import StarField from '../components/StarField';
+import Footer from '../components/Footer';
 import { usersAPI, stripeAPI } from '../lib/api';
 import { useDbUser } from '../context/UserContext';
 import { Toast, setToastHandler } from '../components/Toast';
@@ -21,9 +23,37 @@ export default function DashboardPage() {
     setToast({ message, type });
   }, []);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const refreshHasRun = useRef(false);
+
   useEffect(() => {
     setToastHandler(showToast);
-  }, [showToast]);
+
+    // Handle checkout success/cancel params
+    const success = searchParams.get('success');
+    const canceled = searchParams.get('canceled');
+
+    if (success && !refreshHasRun.current) {
+      refreshHasRun.current = true;
+      const type = success === 'subscription' ? 'Premium Subscription' : 'Credit Top-up';
+      showToast(`${type} successful! Syncing your credits...`, 'success');
+      
+      // Delay refresh slightly to give webhook time to finish
+      setTimeout(async () => {
+        await refreshUser();
+        // Clear params
+        searchParams.delete('success');
+        setSearchParams(searchParams, { replace: true });
+        showToast('Credits updated!', 'success');
+      }, 2000);
+    }
+
+    if (canceled) {
+      showToast('Checkout was canceled.', 'info');
+      searchParams.delete('canceled');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [showToast, searchParams, setSearchParams, refreshUser]);
 
   const fetchSubscriptionStatus = useCallback(async () => {
     try {
@@ -47,8 +77,13 @@ export default function DashboardPage() {
   const handleCheckout = async (type) => {
     setCheckoutLoading(type);
     try {
-      const { url } = await stripeAPI.createCheckout(type);
-      window.location.href = url;
+      if (type === 'manage') {
+        const { url } = await stripeAPI.createPortal();
+        window.location.href = url;
+      } else {
+        const { url } = await stripeAPI.createCheckout(type);
+        window.location.href = url;
+      }
     } catch {
       showToast('Could not start checkout. Please try again.', 'error');
       setCheckoutLoading(null);
@@ -146,33 +181,50 @@ export default function DashboardPage() {
                   : <><ArrowUpRight className="w-4 h-4" /> Upgrade to Premium</>
                 }
               </button>
-            ) : isCanceling ? (
-              <>
-                <p className="text-sm text-amber-600 dark:text-amber-400">⚠️ Canceling at period end — access until {new Date(subscriptionStatus.currentPeriodEnd).toLocaleDateString()}</p>
-                <button
-                  onClick={handleReactivateSubscription}
-                  disabled={cancelLoading}
-                  className="w-full btn-primary text-sm py-2.5 mt-2"
-                >
-                  {cancelLoading
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Loading...</>
-                    : 'Reactivate Subscription'
-                  }
-                </button>
-              </>
             ) : (
+              <button
+                onClick={() => handleCheckout('manage')}
+                disabled={checkoutLoading !== null}
+                className="w-full btn-primary text-sm py-2.5"
+              >
+                {checkoutLoading === 'manage'
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Loading...</>
+                  : <><Settings className="w-4 h-4" /> Manage Subscription</>
+                }
+              </button>
+            )}
+
+            {isSubscribed && (
               <>
-                <p className="text-sm text-gray-500 dark:text-white/50">✓ 15 credits/month · TTS · Private Vault</p>
-                <button
-                  onClick={handleCancelSubscription}
-                  disabled={cancelLoading}
-                  className="w-full btn-secondary text-sm py-2.5 mt-2 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20"
-                >
-                  {cancelLoading
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Canceling...</>
-                    : 'Cancel Subscription'
-                  }
-                </button>
+                {!isCanceling && <p className="text-sm text-gray-500 dark:text-white/50">✓ 15 credits/month · TTS · Private Vault</p>}
+                
+                {isCanceling ? (
+                  <p className="text-sm text-amber-600 dark:text-amber-400">⚠️ Canceling at period end — access until {new Date(subscriptionStatus.currentPeriodEnd).toLocaleDateString()}</p>
+                ) : null}
+
+                {isCanceling ? (
+                  <button
+                    onClick={handleReactivateSubscription}
+                    disabled={cancelLoading}
+                    className="w-full btn-primary text-sm py-2.5 mt-2"
+                  >
+                    {cancelLoading
+                      ? <><Loader2 className="w-4 h-4 animate-spin" /> Loading...</>
+                      : 'Reactivate Subscription'
+                    }
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleCancelSubscription}
+                    disabled={cancelLoading}
+                    className="w-full btn-secondary text-sm py-2.5 mt-2 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  >
+                    {cancelLoading
+                      ? <><Loader2 className="w-4 h-4 animate-spin" /> Canceling...</>
+                      : 'Cancel Subscription'
+                    }
+                  </button>
+                )}
               </>
             )}
 
@@ -230,6 +282,8 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      <Footer />
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
     </div>
   );

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { SignInButton, useAuth } from '@clerk/clerk-react';
 import { Check, Sparkles, Volume2, Lock, Star, Zap, CreditCard, ArrowRight, Loader2 } from 'lucide-react';
 import StarField from '../components/StarField';
+import Footer from '../components/Footer';
 import { stripeAPI } from '../lib/api';
 import { useDbUser } from '../context/UserContext';
 
@@ -12,7 +13,7 @@ const PLANS = [
     period: '',
     description: 'Perfect for trying DreamWeaver',
     credits: '3 Welcome Credits',
-    cta: 'Get Started',
+    cta: 'Create Your First Story Free',
     type: null, // No Stripe
     badge: null,
     color: 'border-gray-200 dark:border-white/10',
@@ -72,8 +73,14 @@ export default function PricingPage() {
     if (!isSignedIn) return;
     setLoading(type);
     try {
-      const { url } = await stripeAPI.createCheckout(type);
-      window.location.href = url;
+      if (type === 'manage') {
+        // Already subscribed → go to billing portal
+        const { url } = await stripeAPI.createPortal();
+        window.location.href = url;
+      } else {
+        const { url } = await stripeAPI.createCheckout(type);
+        window.location.href = url;
+      }
     } catch {
       alert('Checkout failed. Please try again.');
       setLoading(null);
@@ -184,8 +191,8 @@ export default function PricingPage() {
                 <button
                   onClick={() => {
                     if (isSubscribed) {
-                      // User is subscribed → go to manage subscription
-                      window.location.href = '/dashboard';
+                      // User is subscribed → go to Stripe billing portal
+                      handleCheckout('manage');
                     } else {
                       // Not subscribed → checkout
                       handleCheckout(plan.type);
@@ -219,6 +226,8 @@ export default function PricingPage() {
           </div>
         </div>
       </div>
+
+      <Footer />
     </div>
   );
 }
