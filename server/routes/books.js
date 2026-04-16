@@ -78,7 +78,7 @@ router.post(
         const bookRes = await client.query(
           `INSERT INTO books (user_id, title, protagonist_name, theme, location, style, style_filter, border_style, page_count, cover_image_url, dedicated_by, font, embedding)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
-          [user.id, bookTitle, childName, theme, location, style, styleFilter, borderStyle, pageCount, coverImageUrl || null, dedicatedBy || 'Mummy and Daddy', validFont, JSON.stringify(embedding)]
+          [user.id, bookTitle, childName, theme, location, style, styleFilter, borderStyle, pageCount, coverImageUrl || null, dedicatedBy || 'Mummy and Daddy', validFont, embedding ? JSON.stringify(embedding) : null]
         );
         const book = bookRes.rows[0];
 
@@ -93,15 +93,18 @@ router.post(
         }
 
         // 4. Trigger Background AI Image Generation (True AI Transformation)
-        // We do this asynchronously so the user doesn't wait minutes for DALL-E 3
+        // We do this asynchronously so the user doesn't wait minutes for generation
         (async () => {
           try {
             console.log(`[AI TRANSFORMATION] Starting for book ${book.id}...`);
+            // Generate a stable seed for this entire book to ensure visual consistency
+            const bookSeed = Math.floor(Math.random() * 2147483647);
+            
             for (let i = 0; i < pages.length; i++) {
               const p = pages[i];
               if (p.image_prompt) {
-                console.log(`[AI TRANSFORMATION] Generating image for page ${i + 1}...`);
-                const aiUrl = await generateAIImage(p.image_prompt, style);
+                console.log(`[AI TRANSFORMATION] Generating image for page ${i + 1} (Seed: ${bookSeed})...`);
+                const aiUrl = await generateAIImage(p.image_prompt, style, bookSeed);
                 if (aiUrl) {
                   const result = await pool.query(
                     'UPDATE book_pages SET ai_image_url = $1 WHERE book_id = $2 AND page_number = $3',
@@ -515,24 +518,24 @@ router.post(
         embedding = await generateEmbedding(`${bookTitle}. ${firstStoryContent}`);
 
         // Save it for future use - store as proper PostgreSQL vector literal
-        if (embedding) {
-          const embeddingVector = Array.isArray(embedding) ? embedding : JSON.parse(embedding);
-          // PostgreSQL vector expects: '[1,2,3]' not '"[1,2,3]"'
-          const vectorLiteral = JSON.stringify(embeddingVector);
+        if (embedding && Array.isArray(embedding) && embedding.length > 0) {
+          const vectorLiteral = JSON.stringify(embedding);
           await pool.query('UPDATE books SET embedding = $1::vector WHERE id = $2', [vectorLiteral, bookId]);
-        } else {
+        } else if (!embedding) {
           // If generation fails (e.g. rate limit), just gracefully return no related books instead of 404
           return res.json([]);
         }
       }
 
-      const embeddingStr = Array.isArray(embedding) ? JSON.stringify(embedding) : embedding;
+      const embeddingStr = (embedding && Array.isArray(embedding) && embedding.length > 0) ? JSON.stringify(embedding) : null;
+      if (!embeddingStr) return res.json([]);
+
       const relatedRes = await pool.query(
         `SELECT id, title, cover_image_url as image_url, 
-                (1 - (embedding::vector <=> $1::vector)) * 100 as similarity
+                (1 - (embedding <=> $1::vector)) * 100 as similarity
          FROM books
          WHERE id != $2 AND is_public = true AND embedding IS NOT NULL
-         ORDER BY embedding::vector <=> $1::vector
+         ORDER BY embedding <=> $1::vector
          LIMIT 4`,
         [embeddingStr, bookId]
       );

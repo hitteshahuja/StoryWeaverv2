@@ -292,25 +292,12 @@ export default function BookPreview({ book, onPrint, onClose, onRefreshImage, cr
                     </div>
                   </div>
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-gradient-to-br from-night-950 to-night-900 border-r border-white/5">
-                    <div className="max-w-xs space-y-6">
-                      <div className="w-20 h-20 mx-auto rounded-3xl bg-dream-500/10 border border-dream-500/20 flex items-center justify-center">
-                        <RefreshCw className="w-10 h-10 text-dream-500/40" />
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-dream-50 to-purple-50 dark:from-dream-900/20 dark:to-purple-900/20">
+                    <div className="text-center">
+                      <div className="w-16 h-16 mx-auto rounded-full bg-dream-100 dark:bg-dream-500/20 flex items-center justify-center mb-4">
+                        <Loader2 className="w-8 h-8 text-dream-400 animate-spin" />
                       </div>
-                      <div className="space-y-2">
-                        <h4 className="text-lg font-bold text-white">Missing Illustration</h4>
-                        <p className="text-sm text-white/40">This page doesn't have an image yet. Would you like to generate a matching AI illustration?</p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setPendingRefreshPage(current.page_number);
-                          setCustomPrompt('');
-                          setShowRefreshConfirm(true);
-                        }}
-                        className="w-full py-3 px-4 rounded-xl bg-dream-500 text-white font-bold text-sm hover:bg-dream-600 transition-all shadow-lg shadow-dream-500/20 active:scale-95"
-                      >
-                        Generate Image (2 Credits)
-                      </button>
+                      <p className="text-sm text-gray-500 dark:text-white/50 font-medium">Generating illustration...</p>
                     </div>
                   </div>
                 )}

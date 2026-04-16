@@ -73,8 +73,23 @@ CREATE INDEX IF NOT EXISTS idx_book_pages_book_id ON book_pages(book_id);
 -- Migration: add ai_image_url to book_pages (run if column doesn't exist)
 ALTER TABLE book_pages ADD COLUMN IF NOT EXISTS ai_image_url TEXT;
 
+-- Migration: add image_prompt to book_pages (run if column doesn't exist)
+ALTER TABLE book_pages ADD COLUMN IF NOT EXISTS image_prompt TEXT;
+
 -- Migration: add cover_image_url to books (run if column doesn't exist)
 ALTER TABLE books ADD COLUMN IF NOT EXISTS cover_image_url TEXT;
 
+-- Migration: add font to books
+ALTER TABLE books ADD COLUMN IF NOT EXISTS font VARCHAR(50) DEFAULT 'system';
+
 -- Migration: add audio_url to book_pages (run if column doesn't exist)
 ALTER TABLE book_pages ADD COLUMN IF NOT EXISTS audio_url TEXT;
+
+-- Migration: parental consent columns
+ALTER TABLE users ADD COLUMN IF NOT EXISTS consent_given BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS consent_image BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS consent_voice BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS consent_privacy BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS consent_timestamp TIMESTAMPTZ;
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_cancel_at_period_end BOOLEAN DEFAULT FALSE;

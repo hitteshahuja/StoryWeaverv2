@@ -252,12 +252,11 @@ IMPORTANT: Be extremely specific about physical features. Generic descriptions l
         content: contentParts,
       },
     ],
-    max_tokens: 16384,
+    max_tokens: 10000,
     temperature: 0.3,
     metadata: { _cache: { mode: 'none' } },
   });
   console.log(response.choices[0].message.content)
-  console.log('[extractChildFeatures] finish_reason:', response.choices[0]?.finish_reason, 'tokens:', response.usage);
 
   // If truncated, retry once with even higher limit
   if (response.choices[0]?.finish_reason === 'MAX_TOKENS' || response.choices[0]?.finish_reason === 'length') {
@@ -279,7 +278,7 @@ IMPORTANT: Be extremely specific about physical features. Generic descriptions l
     let jsonStr = jsonMatch ? jsonMatch[0] : cleaned;
     try {
       const result = JSON.parse(jsonStr);
-      
+
       // Normalize personality_traits to always be an array
       const normalizeTraits = (traits) => {
         if (!traits) return [];
@@ -289,7 +288,7 @@ IMPORTANT: Be extremely specific about physical features. Generic descriptions l
         }
         return [];
       };
-      
+
       if (result.personality_traits) {
         result.personality_traits = normalizeTraits(result.personality_traits);
       }
@@ -299,7 +298,7 @@ IMPORTANT: Be extremely specific about physical features. Generic descriptions l
           personality_traits: normalizeTraits(c.personality_traits)
         }));
       }
-      
+
       return result;
     } catch (firstErr) {
       // Attempt to repair truncated JSON
@@ -516,26 +515,29 @@ ${featureBlock}
 Format your response as a JSON array of ${pageCount} objects. Each object must have:
 - "page": Number (1 to ${pageCount})
 - "type": "title" (page 1), "story" (pages 2 to ${pageCount - 1}), or "conclusion" (page ${pageCount}).
-- "content": The text for that page. Story pages should be approx 40-60 words each. 
-  STYLE: Write in simple, warm prose. Do NOT force rhymes. Do NOT use forward slashes (/) to separate lines — just use standard sentences.
-- "image_prompt": A highly detailed prompt for DALL-E 3 that is a DIRECT VISUAL DEPICTION of the scene. Include the characters' full physical descriptions (hair color, hairstyle, eyes, clothing) in EVERY prompt.
-  IMPORTANT: The title page (page 1) MUST have an image_prompt for a beautiful cover illustration. The conclusion page (page ${pageCount}) MUST have image_prompt set to null.
+- "content": The text for that page. Story pages should be 40-60 words. Simple, warm prose.
+- "image_prompt": A ONE-SENTENCE description of a single frozen moment. 
+  STRICT RULES:
+  1. Exactly ONE sentence. NO multiple actions. NO "and then". NO listing sequences.
+  2. Exactly ONE verb. Focus on a single state (e.g., "${childName} is sitting" or "${childName} is reaching").
+  3. NO TEXT: NO "zoom" bubbles, NO words, NO letters. Just the illustration.
+  4. CONSISTENCY: Describe the protagonst's hair, eyes, and EXACT outfit in this one sentence.
 
 Structure:
 - Page 1 (TITLE PAGE): 
-  - "content": ONLY the book title (2-5 words, e.g. "${hasMultiple ? names.join(' & ') + "'s" : childName + "'s"} Great Quest").
-  - "image_prompt": A stunning, centered book cover illustration. COMPOSITION: Keep main characters centered with plenty of space around the edges to avoid cropping. The cover should depict ${characterRef} in a warm, heartwarming scene related to "${theme}". Art style: "${style}". Theme: "${theme}".
+  - "content": ONLY the book title (e.g. "${hasMultiple ? names.join(' & ') + "'s" : childName + "'s"} Great Quest").
+  - "image_prompt": One-sentence cover depicting ${characterRef} centered and happy. Art Style: "${style}".
   - "dedication": "Created by ${dedicatedBy}"
-- Pages 2 to ${pageCount - 1} (STORY PAGES): The heart of the adventure. ${hasMultiple ? `Feature ALL characters: ${allNamesList}.` : `Show ${childName}'s personality.`}
+- Pages 2 to ${pageCount - 1} (STORY PAGES): One-sentence description of the character in a single pose in "${location}".
 - Page ${pageCount} (THE END PAGE):
   - "content": "${closingLine}"
   - "image_prompt": null
 
-${protagonistLabel}: "${protagonistNames}". Use these exact names. Always include their physical traits from the description in every image prompt.
+${protagonistLabel}: "${protagonistNames}". Repeat their physical traits and current outfit in EVERY single-sentence image_prompt.
 Setting: "${location}" with a theme of "${theme}".
 Art Style: "${style}".
 
-STRICT: Only return the JSON array. No other text.`;
+STRICT: Only return the JSON array. Every image_prompt MUST be exactly one single sentence describing a single frozen moment. Any multi-sentence prompt or list of actions is a failure.`;
 
   const userMessageContent = [
     {
@@ -579,14 +581,14 @@ ${customPrompt ? `\n6. Additional instructions from the parent: ${customPrompt}`
     response = await portkey.chat.completions.create({
       model: MODELS.textGeneration,
       messages: [{ role: 'user', content: finalContent }],
-      max_tokens: 16384,
+      max_tokens: 8192,
       temperature: 0.8,
     });
   } catch (err) {
     response = await portkey.chat.completions.create({
       model: MODELS.textGeneration,
       messages: [{ role: 'user', content: `${SYSTEM_PROMPT_BOOK}\n\nUSER REQUEST (Safe Fallback): ${userMessageContent[0].text}` }],
-      max_tokens: 16384,
+      max_tokens: 10000,
       temperature: 0.7,
     });
   }
