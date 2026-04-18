@@ -26,14 +26,14 @@ export default function LibraryPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const booksRes = filter === 'favorites' 
-          ? await booksAPI.favorites(page, PAGE_SIZE) 
+        const booksRes = filter === 'favorites'
+          ? await booksAPI.favorites(page, PAGE_SIZE)
           : await booksAPI.list(page, PAGE_SIZE);
 
         const books = Array.isArray(booksRes) ? booksRes : (booksRes.books || []);
-        
+
         setItems(books.map(b => ({ ...b, itemType: 'book' })));
-        
+
         const totalBooks = Array.isArray(booksRes) ? books.length : (booksRes.total || 0);
         setTotalCount(totalBooks);
       } catch (err) {
@@ -135,8 +135,8 @@ export default function LibraryPage() {
 
             {/* AI Discovery Engine - Discovery of similar books based on library content */}
             {items.length > 0 && (
-              <RelatedBooks 
-                currentBookId={items[0]?.id} 
+              <RelatedBooks
+                currentBookId={items[0]?.id}
               />
             )}
 

@@ -76,7 +76,8 @@ export default function AppPage() {
   }, [photos.length]);
 
   const credits = dbUser?.credits ?? 0;
-  const canGenerate = credits >= pageCount && photos.length > 0 && !loading && !analyzing;
+  const hasConsent = dbUser?.consent_given ?? false;
+  const canGenerate = credits >= pageCount && photos.length > 0 && !loading && !analyzing && !extractingFeatures && hasConsent;
   const canRefresh = credits >= 1 && !analyzing && !extractingFeatures;
 
   const handleUpload = async (newPhotos) => {
@@ -720,15 +721,24 @@ export default function AppPage() {
 
           {/* Generate button */}
           <button
-            onClick={credits < pageCount ? () => setShowCreditModal(true) : handleGenerate}
-            disabled={photos.length === 0 || loading || analyzing}
+            onClick={() => {
+              if (!hasConsent) return;
+              if (credits < pageCount) setShowCreditModal(true);
+              else handleGenerate();
+            }}
+            disabled={!canGenerate}
             className={`w-full py-5 rounded-2xl text-lg font-black transition-all duration-300 flex items-center justify-center gap-3 shadow-xl
-                        ${canGenerate ? 'btn-primary hover:scale-[1.02] active:scale-95 shadow-gold/20' : 'bg-gray-100 dark:bg-white/5 text-gray-400 dark:text-white/20 cursor-not-allowed border border-gray-200 dark:border-white/10'}`}
+                        ${canGenerate ? 'btn-primary hover:scale-[1.02] active:scale-95 shadow-gold-20' : 'bg-gray-100 dark:bg-white/5 text-gray-400 dark:text-white/20 cursor-not-allowed border border-gray-200 dark:border-white/10'}`}
           >
             {loading ? (
               <>
                 <Loader2 className="w-6 h-6 animate-spin" />
                 Weaving {pageCount + 2} magical pages...
+              </>
+            ) : !hasConsent ? (
+              <>
+                <Sparkles className="w-6 h-6" />
+                Parental consent required
               </>
             ) : credits < pageCount ? (
               <>
@@ -741,6 +751,11 @@ export default function AppPage() {
                   <Zap className="w-4 h-4" /> Buy More Credits
                 </a>
 
+              </>
+            ) : !hasConsent ? (
+              <>
+                <Sparkles className="w-6 h-6" />
+                Parental consent required
               </>
             ) : (
               <>

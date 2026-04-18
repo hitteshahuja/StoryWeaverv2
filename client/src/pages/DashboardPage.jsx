@@ -7,6 +7,7 @@ import Footer from '../components/Footer';
 import { usersAPI, stripeAPI } from '../lib/api';
 import { useDbUser } from '../context/UserContext';
 import { Toast, setToastHandler } from '../components/Toast';
+import formbricks from '@formbricks/js';
 
 export default function DashboardPage() {
   const { isSignedIn } = useAuth();
@@ -18,6 +19,7 @@ export default function DashboardPage() {
   const [subscriptionStatus, setSubscriptionStatus] = useState({ active: false, cancelAtPeriodEnd: false });
   const [statusLoading, setStatusLoading] = useState(true);
   const [toast, setToast] = useState(null);
+
 
   const showToast = useCallback((message, type = 'info') => {
     setToast({ message, type });
@@ -37,7 +39,7 @@ export default function DashboardPage() {
       refreshHasRun.current = true;
       const type = success === 'subscription' ? 'Premium Subscription' : 'Credit Top-up';
       showToast(`${type} successful! Syncing your credits...`, 'success');
-      
+
       // Delay refresh slightly to give webhook time to finish
       setTimeout(async () => {
         await refreshUser();
@@ -197,7 +199,7 @@ export default function DashboardPage() {
             {isSubscribed && (
               <>
                 {!isCanceling && <p className="text-sm text-gray-500 dark:text-white/50">✓ 15 credits/month · TTS · Private Vault</p>}
-                
+
                 {isCanceling ? (
                   <p className="text-sm text-amber-600 dark:text-amber-400">⚠️ Canceling at period end — access until {new Date(subscriptionStatus.currentPeriodEnd).toLocaleDateString()}</p>
                 ) : null}
@@ -240,6 +242,27 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
+
+        {/* Consent status */}
+        {dbUser?.consent_given && (
+          <div className="card mb-6 border-emerald-500/30 bg-emerald-500/5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-emerald-500/10">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900 dark:text-white">Parental Consent Given</p>
+                <p className="text-sm text-gray-500 dark:text-white/50">You have completed the parental consent process</p>
+              </div>
+              <input
+                type="checkbox"
+                checked
+                disabled
+                className="ml-auto w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-emerald-500 bg-emerald-500/20 cursor-not-allowed"
+              />
+            </div>
+          </div>
+        )}
 
         {/* Billing history */}
         <div className="card">

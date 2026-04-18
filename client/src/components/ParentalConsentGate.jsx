@@ -7,23 +7,30 @@ import ParentalConsentModal from './ParentalConsentModal';
 
 export default function ParentalConsentGate({ children }) {
   const { isSignedIn } = useAuth();
-  const { dbUser, loading, refreshUser } = useDbUser();
+  const { dbUser, loading: dbLoading, refreshUser } = useDbUser();
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
+  // Only show modal after dbUser is fully loaded AND consent not given
   useEffect(() => {
-    if (!isSignedIn || loading) {
+    // Don't show modal while still loading user data
+    if (!isSignedIn || dbLoading) {
       setShowModal(false);
-    } else if (!dbUser?.consent_given) {
-      setShowModal(true);
-    } else {
-      setShowModal(false);
+      return;
     }
-  }, [isSignedIn, loading, dbUser?.consent_given]);
+    
+    // User loaded and consent already given - don't show
+    if (dbUser?.consent_given) {
+      setShowModal(false);
+      return;
+    }
+    
+    // User loaded but no consent - show modal
+    setShowModal(true);
+  }, [isSignedIn, dbLoading, dbUser?.consent_given]);
 
-  if (!isSignedIn || loading) return children;
-
-  if (dbUser?.consent_given) return children;
+  // Don't render modal if user not signed in, still loading, or already consented
+  if (!isSignedIn || dbLoading || dbUser?.consent_given) return children;
 
   const handleConsent = async (consentData) => {
     setSaving(true);

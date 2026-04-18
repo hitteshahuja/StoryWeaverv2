@@ -15,8 +15,8 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ─── Security Headers ─────────────────────────────────────────
-const r2Domain = process.env.R2_PUBLIC_URL 
-  ? new URL(process.env.R2_PUBLIC_URL).hostname 
+const r2Domain = process.env.R2_PUBLIC_URL
+  ? new URL(process.env.R2_PUBLIC_URL).hostname
   : '*.r2.dev';
 
 app.use(helmet({
@@ -46,9 +46,10 @@ app.get('/api/stripe/test-webhook', (req, res) => {
 });
 
 // ─── JSON Body Parser (Skip for Stripe Webhook) ────────────────
-const skipJsonParsing = (url) => 
-  url.startsWith('/api/stripe/webhook') || 
-  url.startsWith('/api/stripe/test-');
+const skipJsonParsing = (url) =>
+  url.startsWith('/api/stripe/webhook') ||
+  url.startsWith('/api/stripe/test-') ||
+  url.startsWith('/api/users/clerk/webhooks');
 
 app.use((req, res, next) => {
   if (req.originalUrl.includes('stripe')) {
@@ -71,7 +72,7 @@ app.use((req, res, next) => {
 // ─── Rate Limiting ────────────────────────────────────────────
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200,
+  max: process.env.NODE_ENV === 'production' ? 200 : 10000, // Much higher limit for local dev
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => req.path === '/users/sync' || req.path === '/users/me',

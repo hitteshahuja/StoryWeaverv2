@@ -16,7 +16,7 @@ export default function BookPreview({ book, onPrint, onClose, onRefreshImage, cr
   const totalSpreads = pages.length;
   const current = pages[currentPage];
   const allImagesReady = pages.length > 0 && pages.every(p => p.ai_image_url || !p.image_url);
-  
+
   const fontConfig = getFontById(book.font);
 
   useEffect(() => {
@@ -217,12 +217,12 @@ export default function BookPreview({ book, onPrint, onClose, onRefreshImage, cr
       <div className="flex-1 flex items-center justify-center px-4 sm:px-8 pb-4 min-h-0">
         <div className="relative w-full max-w-6xl h-full max-h-[calc(100vh-160px)]">
           <div className="w-full h-full bg-white dark:bg-night-900 rounded-2xl shadow-2xl border border-white/10 overflow-hidden flex">
-            
+
             {/* Left Page (Image) */}
             <div className={`w-1/2 h-full relative overflow-hidden ${getBorderStyle(book.border_style).left}`}>
               <div className="w-full h-full relative bg-gray-50 dark:bg-night-950 overflow-hidden">
                 <div className="paper-texture opacity-20" />
-                
+
                 <div className="light-leak" style={{ '--x': '10%', '--y': '10%' }} />
                 <div className="sparkle" style={{ '--delay': '0.5s', top: '20%', left: '30%' }} />
                 <div className="sparkle" style={{ '--delay': '1.2s', top: '60%', left: '70%' }} />
@@ -230,17 +230,17 @@ export default function BookPreview({ book, onPrint, onClose, onRefreshImage, cr
 
                 {book.border_style === 'Floral' && <div className="absolute inset-0 pointer-events-none opacity-20 bg-[url('https://www.transparenttextures.com/patterns/floral-paper.png')]" />}
                 {book.border_style === 'Stars' && <div className="absolute inset-0 pointer-events-none opacity-20 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />}
-                
+
                 {currentImageSrc ? (
                   <div className="w-full h-full relative overflow-hidden">
-                    <img 
-                      src={currentImageSrc} 
+                    <img
+                      src={currentImageSrc}
                       alt={`Page ${current.page_number}`}
                       className={`w-full h-full ${current.type === 'title' ? 'object-contain' : 'object-cover'} animate-fade-in transition-all duration-700 relative z-0`}
                       style={getFilterStyle()}
                       key={`img-${currentPage}`}
                     />
-                    
+
                     {imageLoading && (
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-[2px]">
                         <div className="flex flex-col items-center gap-3">
@@ -281,7 +281,7 @@ export default function BookPreview({ book, onPrint, onClose, onRefreshImage, cr
                         )}
                       </button>
                     )}
-                    
+
                     {(book.style === 'Watercolor' || book.style === 'Oil Painting') && <div className="canvas-texture" />}
                   </div>
                 ) : current?.type === 'conclusion' ? (
@@ -309,16 +309,16 @@ export default function BookPreview({ book, onPrint, onClose, onRefreshImage, cr
 
             {/* Right Page (Text) */}
             <div className={`w-1/2 h-full relative overflow-hidden ${getBorderStyle(book.border_style).right}`}>
-              <div 
+              <div
                 className="w-full h-full p-8 md:p-12 lg:p-16 flex flex-col justify-center bg-white dark:bg-night-900 relative overflow-hidden"
                 style={{ fontFamily: fontConfig.cssFontFamily }}
               >
                 <div className="paper-texture opacity-10" />
                 <div className="light-leak" style={{ '--x': '80%', '--y': '80%' }} />
-                
+
                 {book.border_style === 'Floral' && <div className="absolute inset-0 pointer-events-none opacity-20 bg-[url('https://www.transparenttextures.com/patterns/floral-paper.png')]" />}
                 {book.border_style === 'Stars' && <div className="absolute inset-0 pointer-events-none opacity-20 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />}
-                
+
                 <div className="max-w-lg mx-auto space-y-6 animate-fade-in relative z-10" key={`text-${currentPage}`}>
                   {current?.type === 'title' ? (
                     <div className="text-center space-y-8">
@@ -332,7 +332,7 @@ export default function BookPreview({ book, onPrint, onClose, onRefreshImage, cr
                         </p>
                       )}
                     </div>
-) : current?.type === 'conclusion' ? (
+                  ) : current?.type === 'conclusion' ? (
                     <div className="text-center space-y-8">
                       <span className="badge-dream">Page {current.page_number}</span>
                       <p className="text-2xl md:text-3xl text-gray-700 dark:text-white/90 leading-relaxed font-serif italic">
@@ -410,7 +410,7 @@ export default function BookPreview({ book, onPrint, onClose, onRefreshImage, cr
               </div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Refresh this image?</h3>
               <p className="text-sm text-gray-500 dark:text-white/60 mb-4">
-                Regenerate this illustration for <span className="font-semibold text-dream-500">2 credits</span>. 
+                Regenerate this illustration for <span className="font-semibold text-dream-500">2 credits</span>.
                 Your current image will be replaced.
               </p>
               <div className="mb-4">

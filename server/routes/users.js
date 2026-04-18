@@ -3,7 +3,9 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
-
+const { verifyWebhook } = require('@clerk/express/webhooks');
+const { sendEmail } = require('../services/resend');
+const { handlePrint } = require('../services/print');
 // GET /api/users/me — get current user's profile + credits
 router.get('/me', requireAuth, async (req, res) => {
   try {
@@ -106,7 +108,7 @@ router.put(
          RETURNING *`,
         [clerkId, child_name, child_age]
       );
-      
+
       if (result.rows.length === 0) {
         return res.status(404).json({ error: 'User not found' });
       }
@@ -172,5 +174,48 @@ router.post(
     }
   }
 );
+// Implement clerk webhooks endpoint.
+router.post('/clerk/webhooks', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const evt = await verifyWebhook(req);
+    // REMOVE 'await' here. wh.verify is synchronous.
+    //const evt = wh.verify(payload, svixHeaders);
+
+    const { id } = evt.data;
+    const eventType = evt.type;
+
+    console.log(`Verified event ${eventType} for user ${id}`);
+    // Handle GDPR Deletion
+    if (eventType === 'user.deleted') {
+      // 1. Get user email from your DB first!
+      /* const user = await pool.query('SELECT email FROM users WHERE clerk_id = $1', [id]);
+      const books = await pool.query('SELECT * FROM books WHERE user_id = $1', [user.rows[0].id]);
+      for (const book of books.rows) {
+        const pdf = handlePrint(book);
+        zip.file(`${book.title.replace(/\s+/g, '_')}.pdf`, pdf);
+      }
+      const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
+      const attachment = {
+        filename: `${book.title.replace(/\s+/g, '_')}.zip`,
+        content: zipBuffer,
+        contentType: 'application/zip',
+      };
+      await sendEmail(user.rows[0].email, 'Your account has been deleted',
+        'Your account has been deleted', [attachment]);
+      console.log('Email sent to user'); */
+      // 2. Trigger your zip/email background task
+      if (user.rows.length > 0) {
+
+        // 3. Delete user from your DB
+      }
+    }
+
+    return res.status(200).send('Webhook received');
+
+  } catch (err) {
+    console.error('Svix Verification Error:', err.message);
+    return res.status(400).json({ error: 'Invalid signature' });
+  }
+});
 
 module.exports = router;
