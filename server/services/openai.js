@@ -669,7 +669,9 @@ ${customPrompt ? `\n6. Additional instructions from the parent: ${customPrompt}`
       };
     }
 
-    // Title page: use selected cover image or generate AI cover
+    // Title page: always generate an AI cover image
+    // image_url holds the user's uploaded photo temporarily (shown during generation),
+    // but it will be deleted after AI processing — ai_image_url is the permanent cover.
     if (sanitizedType === 'title') {
       let finalPrompt = p.image_prompt;
       if (!finalPrompt || finalPrompt.length < 50) {
@@ -679,7 +681,7 @@ ${customPrompt ? `\n6. Additional instructions from the parent: ${customPrompt}`
         ...p,
         type: sanitizedType,
         image_url: coverImageUrl || null,
-        image_prompt: coverImageUrl ? null : finalPrompt,
+        image_prompt: finalPrompt,
         dedication: p.dedication || `Created by ${dedicatedBy}`
       };
     }

@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "name": "Update Docs on Code Change",
+  "description": "Whenever a code file is updated, prompt the agent to review and update the README.md documentation to reflect any new features or changes.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*.js",
+      "**/*.jsx",
+      "**/*.ts",
+      "**/*.tsx"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A code file was just updated. Review the changes and update the README.md documentation if the changes introduce new features, modify existing functionality, or affect usage instructions. Keep the documentation accurate and up to date."
+  }
+}

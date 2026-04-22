@@ -86,6 +86,7 @@ stripe listen --forward-to localhost:3001/api/stripe/webhook
 - 💳 Stripe: $9.99/mo subscription (15 credits) + $3 top-up (5 credits)
 - 🔊 Text-to-Speech (Web Speech API)
 - 🔒 All photos & stories private to the user's account
+- 🎨 AI-generated cover image on every book — the title page always produces a permanent AI illustration (stored in R2); any uploaded photo shown during generation is temporary and cleaned up after processing
 
 ## Security
 - All secrets in `.env` (never committed)
@@ -105,7 +106,7 @@ StoryWeaverv2/
 │   │   ├── components/   # Navbar, PhotoUpload, StoryDisplay, CreditModal, StarField
 │   │   ├── context/      # UserContext (Clerk → DB sync)
 │   │   ├── lib/          # api.js (axios client)
-│   │   └── pages/        # Landing, App, Library, Dashboard, Pricing
+│   │   └── pages/        # Landing, App, Library, Dashboard
 │   └── ...
 └── server/
     ├── db/               # pool.js, schema.sql

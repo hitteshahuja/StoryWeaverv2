@@ -250,7 +250,7 @@ export default function BookPreview({ book, onPrint, onClose, onRefreshImage, cr
                       </div>
                     )}
 
-                    {!current.ai_image_url && current.image_url && (
+                    {!current.ai_image_url && current.image_url && current.type !== 'title' && (
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-[2px]">
                         <div className="flex flex-col items-center gap-3">
                           <div className="w-10 h-10 border-4 border-dream-400 border-t-transparent rounded-full animate-spin" />
