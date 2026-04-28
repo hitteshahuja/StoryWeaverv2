@@ -48,6 +48,7 @@ export const usersAPI = {
   billing: () => api.get('/api/users/billing').then((r) => r.data),
   updateProfile: (data) => api.put('/api/users/profile', data).then((r) => r.data),
   consent: (data) => api.post('/api/users/consent', data).then((r) => r.data),
+  purchaseFont: (fontId) => api.post('/api/users/purchase-font', { fontId }).then((r) => r.data),
 };
 export const uploadAPI = {
   upload: (file) => {

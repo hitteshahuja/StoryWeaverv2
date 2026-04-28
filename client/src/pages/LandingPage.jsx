@@ -76,7 +76,6 @@ export default function LandingPage() {
             </p>
             <div className="mt-4 flex items-center gap-2">
               <span className="badge-gold">Favourite ⭐</span>
-              <span className="badge-dream">Read Aloud 🔊</span>
             </div>
           </div>
         </div>

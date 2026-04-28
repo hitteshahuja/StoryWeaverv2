@@ -5,7 +5,8 @@ const FONTS = [
     description: 'Uses your device\'s default font',
     css: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     pdf: 'helvetica',
-    cssFontFamily: 'inherit'
+    cssFontFamily: 'inherit',
+    premium: false,
   },
   {
     id: 'serif',
@@ -13,7 +14,8 @@ const FONTS = [
     description: 'Elegant traditional serif font',
     css: 'Georgia, "Times New Roman", serif',
     pdf: 'times',
-    cssFontFamily: 'Georgia, serif'
+    cssFontFamily: 'Georgia, serif',
+    premium: false,
   },
   {
     id: 'lora',
@@ -22,7 +24,8 @@ const FONTS = [
     css: '"Lora", Georgia, serif',
     pdf: 'times',
     googleFont: 'Lora',
-    cssFontFamily: '"Lora", serif'
+    cssFontFamily: '"Lora", serif',
+    premium: false,
   },
   {
     id: 'pacifico',
@@ -31,7 +34,8 @@ const FONTS = [
     css: '"Pacifico", cursive',
     pdf: 'helvetica',
     googleFont: 'Pacifico',
-    cssFontFamily: '"Pacifico", cursive'
+    cssFontFamily: '"Pacifico", cursive',
+    premium: false,
   },
   {
     id: 'comic',
@@ -40,7 +44,8 @@ const FONTS = [
     css: '"Comic Neue", "Comic Sans MS", cursive',
     pdf: 'helvetica',
     googleFont: 'Comic+Neue',
-    cssFontFamily: '"Comic Neue", cursive'
+    cssFontFamily: '"Comic Neue", cursive',
+    premium: false,
   },
   {
     id: 'quicksand',
@@ -49,7 +54,8 @@ const FONTS = [
     css: '"Quicksand", "Segoe UI", sans-serif',
     pdf: 'helvetica',
     googleFont: 'Quicksand',
-    cssFontFamily: '"Quicksand", sans-serif'
+    cssFontFamily: '"Quicksand", sans-serif',
+    premium: false,
   },
   {
     id: 'crimson',
@@ -58,7 +64,8 @@ const FONTS = [
     css: '"Crimson Text", Georgia, serif',
     pdf: 'times',
     googleFont: 'Crimson+Text',
-    cssFontFamily: '"Crimson Text", serif'
+    cssFontFamily: '"Crimson Text", serif',
+    premium: false,
   },
   {
     id: 'balsamiq',
@@ -67,7 +74,18 @@ const FONTS = [
     css: '"Balsamiq Sans", cursive',
     pdf: 'helvetica',
     googleFont: 'Balsamiq+Sans',
-    cssFontFamily: '"Balsamiq Sans", cursive'
+    cssFontFamily: '"Balsamiq Sans", cursive',
+    premium: false,
+  },
+  {
+    id: 'alice',
+    name: 'Alice',
+    description: 'Enchanting storybook serif',
+    css: '"Alice", Georgia, serif',
+    pdf: 'times',
+    googleFont: 'Alice',
+    cssFontFamily: '"Alice", serif',
+    premium: true,
   },
 ];
 

@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Download, X, Loader2, RefreshCw } from 'lucide-react';
 import { booksAPI, resolveImageUrl } from '../lib/api';
 import { getFontById } from '../config/fonts';
+import { TEXT_SIZES, DEFAULT_TEXT_SIZE } from '../config/fonts';
 
 const ENABLE_TTS = false; // Feature flag - set to true to enable text-to-speech
 
-export default function BookPreview({ book, onPrint, onClose, onRefreshImage, credits }) {
+export default function BookPreview({ book, onPrint, onClose, onRefreshImage, credits, textSize }) {
   const [currentPage, setCurrentPage] = useState(0);
   const [showRefreshConfirm, setShowRefreshConfirm] = useState(false);
   const [pendingRefreshPage, setPendingRefreshPage] = useState(null);
@@ -18,6 +19,7 @@ export default function BookPreview({ book, onPrint, onClose, onRefreshImage, cr
   const allImagesReady = pages.length > 0 && pages.every(p => p.ai_image_url || !p.image_url);
 
   const fontConfig = getFontById(book.font);
+  const textSizeClasses = TEXT_SIZES.find(s => s.id === (textSize || DEFAULT_TEXT_SIZE))?.classes ?? 'text-xl md:text-2xl';
 
   useEffect(() => {
     const imageUrl = current?.ai_image_url || current?.image_url;
@@ -342,7 +344,7 @@ export default function BookPreview({ book, onPrint, onClose, onRefreshImage, cr
                   ) : (
                     <>
                       <span className="badge-dream">Page {current.page_number}</span>
-                      <p className="text-xl md:text-2xl text-gray-700 dark:text-white/90 leading-relaxed font-serif italic text-center">
+                      <p className={`${textSizeClasses} text-gray-700 dark:text-white/90 leading-relaxed font-serif italic text-center`}>
                         "{current.content}"
                       </p>
                     </>

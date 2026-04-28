@@ -77,6 +77,18 @@ stripe listen --forward-to localhost:3001/api/stripe/webhook
 # Copy the webhook signing secret to server/.env STRIPE_WEBHOOK_SECRET
 ```
 
+**Clerk Webhooks (optional, for account deletion / GDPR):**
+
+In the [Clerk Dashboard](https://dashboard.clerk.com) → Webhooks, create an endpoint pointing to:
+```
+https://your-domain.com/api/users/clerk/webhooks
+```
+Subscribe to the `user.deleted` event and copy the signing secret to `server/.env`:
+```
+CLERK_WEBHOOK_SIGNING_SECRET=whsec_...
+```
+This endpoint handles GDPR account deletion — when a user deletes their Clerk account, their data is removed from the database.
+
 ## Key Features
 - 🔐 Google/Facebook OAuth via Clerk
 - 📸 Photo upload → AI bedtime story (GPT-4o-mini)
@@ -87,6 +99,8 @@ stripe listen --forward-to localhost:3001/api/stripe/webhook
 - 🔊 Text-to-Speech (Web Speech API)
 - 🔒 All photos & stories private to the user's account
 - 🎨 AI-generated cover image on every book — the title page always produces a permanent AI illustration (stored in R2); any uploaded photo shown during generation is temporary and cleaned up after processing
+- 🖋️ Selectable book fonts — free fonts (System Default, Classic Serif, Comic Sans, Lora, Pacifico, Quicksand, Crimson Text, Balsamiq Sans) and premium fonts (Alice) available at story creation. Each font entry exposes a `premium` flag in `server/config/fonts.js` for gating logic. Premium fonts can be permanently unlocked for **1 credit** via `POST /api/users/purchase-font` — once purchased, the font ID is stored in `users.purchased_fonts` and never charged again.
+- 🔡 Selectable text size — story creation includes a text size picker so parents can choose the reading size that suits their child.
 
 ## Security
 - All secrets in `.env` (never committed)
