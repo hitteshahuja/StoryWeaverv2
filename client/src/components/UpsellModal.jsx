@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Star, Heart, Printer, Package, CreditCard, ArrowRight } from 'lucide-react';
+import { X, Star, Heart, Printer, Package } from 'lucide-react';
 
 export default function UpsellModal({ childName, onClose }) {
   return (
@@ -53,8 +53,8 @@ export default function UpsellModal({ childName, onClose }) {
           </div>
 
           <div className="pt-4 space-y-4">
-            <button className="btn-primary w-full py-4 text-lg font-black flex items-center justify-center gap-3 group shadow-gold hover:scale-[1.02]">
-              Order Hardback — $34.99 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            <button disabled className="btn-primary w-full py-4 text-lg font-black flex items-center justify-center gap-3 opacity-50 cursor-not-allowed">
+              Coming Soon — Beta
             </button>
             <p className="text-[10px] text-gray-400 dark:text-white/30 font-medium">
                8x8 Square Format • Premium Satin Paper • archival Inks

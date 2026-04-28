@@ -76,7 +76,6 @@ export default function LandingPage() {
             </p>
             <div className="mt-4 flex items-center gap-2">
               <span className="badge-gold">Favourite ⭐</span>
-              <span className="badge-dream">Read Aloud 🔊</span>
             </div>
           </div>
         </div>
@@ -98,6 +97,7 @@ export default function LandingPage() {
                 desc: 'Gentle dark interface that won\'t disturb little eyes at bedtime.',
                 color: 'text-dream-300',
                 bg: 'bg-dream-500/10',
+                disabled: false,
               },
               {
                 icon: <Shield className="w-6 h-6" />,
@@ -105,6 +105,7 @@ export default function LandingPage() {
                 desc: 'Strict guardrails ensure every story is kind, warm, and age-appropriate.',
                 color: 'text-emerald-400',
                 bg: 'bg-emerald-500/10',
+                disabled: false,
               },
               {
                 icon: <BookOpen className="w-6 h-6" />,
@@ -112,6 +113,7 @@ export default function LandingPage() {
                 desc: 'Save favourites to your private vault and re-read them anytime.',
                 color: 'text-gold-400',
                 bg: 'bg-gold-500/10',
+                disabled: false,
               },
               {
                 icon: <Zap className="w-6 h-6" />,
@@ -119,6 +121,7 @@ export default function LandingPage() {
                 desc: 'Photo to story in under 10 seconds, powered by GPT-4o.',
                 color: 'text-purple-300',
                 bg: 'bg-purple-500/10',
+                disabled: false,
               },
               {
                 icon: <Sparkles className="w-6 h-6" />,
@@ -126,6 +129,7 @@ export default function LandingPage() {
                 desc: 'Let the app read the story aloud in a soothing voice.',
                 color: 'text-pink-300',
                 bg: 'bg-pink-500/10',
+                disabled: true,
               },
               {
                 icon: <Shield className="w-6 h-6" />,
@@ -135,11 +139,16 @@ export default function LandingPage() {
                 bg: 'bg-cyan-500/10',
               },
             ].map((f) => (
-              <div key={f.title} className="card-hover">
+              <div key={f.title} className={`card-hover ${f.disabled ? 'opacity-60' : ''}`}>
                 <div className={`inline-flex p-3 rounded-xl ${f.bg} ${f.color} mb-4`}>
                   {f.icon}
                 </div>
-                <h3 className="font-bold text-gray-900 dark:text-white mb-2">{f.title}</h3>
+                <h3 className="font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                  {f.title}
+                  {f.disabled && (
+                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-md bg-dream-500/20 text-dream-400 border border-dream-500/30 tracking-wide">COMING SOON</span>
+                  )}
+                </h3>
                 <p className="text-gray-500 dark:text-white/50 text-sm leading-relaxed">{f.desc}</p>
               </div>
             ))}

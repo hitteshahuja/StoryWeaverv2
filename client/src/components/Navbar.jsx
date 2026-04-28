@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { SignInButton, SignOutButton, useAuth, UserButton } from '@clerk/clerk-react';
 import { useDbUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeProvider';
-import { Sparkles, BookOpen, LayoutDashboard, DollarSign, Moon, Sun, Shield } from 'lucide-react';
+import { Sparkles, BookOpen, LayoutDashboard, Moon, Sun, Shield } from 'lucide-react';
 import logo from '../assets/dreamweaverlogo3.png';
 export default function Navbar() {
   const { isSignedIn } = useAuth();
@@ -21,6 +21,9 @@ export default function Navbar() {
             <span className="text-xl font-bold bg-gradient-to-r from-dream-300 to-purple-300 bg-clip-text text-transparent">
               DreamWeaver
             </span>
+            <span className="text-xs font-bold px-1.5 py-0.5 rounded-md bg-dream-500/20 text-dream-400 border border-dream-500/30 tracking-wide">
+              BETA
+            </span>
           </Link>
 
           {/* Nav links */}
@@ -32,7 +35,6 @@ export default function Navbar() {
                 <NavLink to="/dashboard" icon={<LayoutDashboard className="w-4 h-4" />}>Dashboard</NavLink>
               </>
             )}
-            <NavLink to="/pricing" icon={<DollarSign className="w-4 h-4" />}>Pricing</NavLink>
             <NavLink to="/privacy" icon={<Shield className="w-4 h-4" />}>Privacy</NavLink>
           </div>
 

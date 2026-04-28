@@ -174,6 +174,48 @@ router.post(
     }
   }
 );
+// POST /api/users/purchase-font — buy a premium font for 1 credit (permanent unlock)
+router.post(
+  '/purchase-font',
+  requireAuth,
+  [body('fontId').isString().trim().notEmpty()],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const clerkId = req.auth.userId;
+    const { fontId } = req.body;
+
+    const { FONTS } = require('../config/fonts');
+    const font = FONTS.find(f => f.id === fontId);
+    if (!font) return res.status(400).json({ error: 'Unknown font' });
+    if (!font.premium) return res.status(400).json({ error: 'Font is already free' });
+
+    try {
+      const userRes = await pool.query('SELECT * FROM users WHERE clerk_id = $1', [clerkId]);
+      if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+      const user = userRes.rows[0];
+
+      // Already owns it — return success without charging
+      const owned = (user.purchased_fonts || '').split(',').filter(Boolean);
+      if (owned.includes(fontId)) return res.json({ purchased_fonts: user.purchased_fonts });
+
+      if (user.credits < 1) return res.status(402).json({ error: 'Insufficient credits' });
+
+      const newFonts = [...owned, fontId].join(',');
+      const result = await pool.query(
+        `UPDATE users SET credits = credits - 1, purchased_fonts = $2 WHERE clerk_id = $1 RETURNING *`,
+        [clerkId, newFonts]
+      );
+
+      res.json(result.rows[0]);
+    } catch (err) {
+      console.error('[POST /users/purchase-font]', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
 // Implement clerk webhooks endpoint.
 router.post('/clerk/webhooks', express.raw({ type: 'application/json' }), async (req, res) => {
   try {

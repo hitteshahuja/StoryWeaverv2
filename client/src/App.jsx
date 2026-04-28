@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ClerkProvider } from '@clerk/clerk-react';
 import { UserProvider } from './context/UserContext';
 import { ThemeProvider } from './context/ThemeProvider';
@@ -7,7 +7,6 @@ import LandingPage from './pages/LandingPage';
 import AppPage from './pages/AppPage';
 import LibraryPage from './pages/LibraryPage';
 import DashboardPage from './pages/DashboardPage';
-import PricingPage from './pages/PricingPage';
 import InitialSetupModal from './components/InitialSetupModal';
 import ParentalConsentGate from './components/ParentalConsentGate';
 import PrivacyPolicy from './components/PrivacyPolicy';
@@ -41,7 +40,7 @@ export default function App() {
                     <Route path="/app" element={<AppPage />} />
                     <Route path="/library" element={<LibraryPage />} />
                     <Route path="/dashboard" element={<DashboardPage />} />
-                    <Route path="/pricing" element={<PricingPage />} />
+                    <Route path="/pricing" element={<Navigate to="/" replace />} />
                     <Route path="/privacy" element={<PrivacyPolicy />} />
                   </Routes>
                 </ParentalConsentGate>

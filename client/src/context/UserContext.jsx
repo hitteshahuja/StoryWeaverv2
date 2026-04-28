@@ -50,8 +50,12 @@ export function UserProvider({ children }) {
     }
   };
 
+  const purchasedFonts = dbUser?.purchased_fonts
+    ? dbUser.purchased_fonts.split(',').filter(Boolean)
+    : [];
+
   return (
-    <UserContext.Provider value={{ dbUser, loading, refreshUser, setDbUser }}>
+    <UserContext.Provider value={{ dbUser, loading, refreshUser, setDbUser, purchasedFonts }}>
       {children}
     </UserContext.Provider>
   );

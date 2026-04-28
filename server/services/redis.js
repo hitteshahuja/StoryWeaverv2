@@ -12,7 +12,7 @@ const createRedisClient = async () => {
     return null;
   }
 
-  const isTls = port === 443 || process.env.REDIS_TLS === 'true';
+  const isTls = process.env.REDIS_TLS === 'true';
   
   const client = createClient({
     username: process.env.REDIS_USERNAME || 'default',
@@ -20,7 +20,7 @@ const createRedisClient = async () => {
     socket: {
       host,
       port,
-      tls: isTls ? {} : undefined,
+      tls: isTls,
       reconnectStrategy: (retries) => {
         if (retries > 3) {
           console.log('[Redis] Max retries reached, giving up');
@@ -64,6 +64,7 @@ const redisWrapper = {
     if (!client) return;
     try {
       await client.setEx(key, ttl, value);
+      console.log(`[Redis] SET ${key} (TTL: ${ttl}s)`);
     } catch (e) {
       console.error('[Redis] SET error:', e.message);
     }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { RedirectToSignIn, useAuth } from '@clerk/clerk-react';
-import { Sparkles, Loader2, WandSparkles, BookOpen, PlusCircle, X, Maximize2, RefreshCw } from 'lucide-react';
+import { Sparkles, Loader2, WandSparkles, BookOpen, PlusCircle, X, Maximize2, RefreshCw, Lock } from 'lucide-react';
 import PhotoUpload from '../components/PhotoUpload';
 import Storyboard from '../components/Storyboard';
 import BookPreview from '../components/BookPreview';
@@ -9,15 +9,15 @@ import CreditModal from '../components/CreditModal';
 import StarField from '../components/StarField';
 import Footer from '../components/Footer';
 import { Zap } from 'lucide-react';
-import { booksAPI } from '../lib/api';
+import { booksAPI, usersAPI } from '../lib/api';
 import { useDbUser } from '../context/UserContext';
-import { FONTS, DEFAULT_FONT, getFontById } from '../config/fonts';
+import { FONTS, DEFAULT_FONT, getFontById, getGoogleFontsUrl, TEXT_SIZES, DEFAULT_TEXT_SIZE } from '../config/fonts';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 export default function AppPage() {
   const { isSignedIn } = useAuth();
-  const { dbUser, refreshUser } = useDbUser();
+  const { dbUser, refreshUser, purchasedFonts } = useDbUser();
   const [photos, setPhotos] = useState([]);
   const [location, setLocation] = useState('');
   const [childName, setChildName] = useState('');
@@ -42,6 +42,7 @@ export default function AppPage() {
   const [pageCount, setPageCount] = useState(10);
   const [selectedBorder, setSelectedBorder] = useState('None');
   const [selectedFont, setSelectedFont] = useState(DEFAULT_FONT);
+  const [selectedTextSize, setSelectedTextSize] = useState(DEFAULT_TEXT_SIZE);
   const [childFeatures, setChildFeatures] = useState(null);
   const [extractingFeatures, setExtractingFeatures] = useState(false);
   const [showBookPreview, setShowBookPreview] = useState(false);
@@ -79,6 +80,33 @@ export default function AppPage() {
   const hasConsent = dbUser?.consent_given ?? false;
   const canGenerate = credits >= pageCount && photos.length > 0 && !loading && !analyzing && !extractingFeatures && hasConsent;
   const canRefresh = credits >= 1 && !analyzing && !extractingFeatures;
+
+  // Load all Google Fonts upfront so previews render correctly
+  useEffect(() => {
+    const url = getGoogleFontsUrl(FONTS.map(f => f.id));
+    if (!url) return;
+    if (document.querySelector('link[data-gfonts]')) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = url;
+    link.setAttribute('data-gfonts', '1');
+    document.head.appendChild(link);
+  }, []);
+
+  const [purchasingFont, setPurchasingFont] = useState(null);
+  const handlePurchaseFont = async (fontId) => {
+    if (credits < 1) { setShowCreditModal(true); return; }
+    setPurchasingFont(fontId);
+    try {
+      await usersAPI.purchaseFont(fontId);
+      await refreshUser();
+      setSelectedFont(fontId);
+    } catch (err) {
+      if (err.response?.status === 402) setShowCreditModal(true);
+    } finally {
+      setPurchasingFont(null);
+    }
+  };
 
   const handleUpload = async (newPhotos) => {
     const updated = [...photos, ...newPhotos];
@@ -201,6 +229,7 @@ export default function AppPage() {
         styleFilter,
         borderStyle: selectedBorder,
         font: selectedFont,
+        textSize: selectedTextSize,
         pageCount,
         customPrompt,
         dedicatedBy: dedicatedBy || undefined,
@@ -672,21 +701,64 @@ export default function AppPage() {
               </div>
 
               <div className="space-y-4 pt-2">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-white/70">Text Font</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {FONTS.map((font) => (
+                <label className="block text-sm font-semibold text-gray-700 dark:text-white/70">Text Size</label>
+                <div className="flex gap-2">
+                  {TEXT_SIZES.map((size) => (
                     <button
-                      key={font.id}
-                      onClick={() => setSelectedFont(font.id)}
-                      className={`px-3 py-2 rounded-xl border text-sm font-medium transition-all duration-300 text-center
-                                  ${selectedFont === font.id
+                      key={size.id}
+                      onClick={() => setSelectedTextSize(size.id)}
+                      className={`flex-1 py-2 rounded-xl border text-sm font-medium transition-all duration-300
+                        ${selectedTextSize === size.id
                           ? 'border-dream-400 bg-dream-50 dark:bg-dream-500/10 text-dream-600 dark:text-dream-300 shadow-sm'
                           : 'border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/5 text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/10'}`}
-                      style={{ fontFamily: font.cssFontFamily }}
                     >
-                      {font.name}
+                      {size.name}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-2">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-white/70">Text Font</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {FONTS.map((font) => {
+                    const isOwned = !font.premium || purchasedFonts.includes(font.id);
+                    const isSelected = selectedFont === font.id;
+                    const isBuying = purchasingFont === font.id;
+                    return (
+                      <div key={font.id} className="relative">
+                        <button
+                          onClick={() => {
+                            if (isOwned) setSelectedFont(font.id);
+                            else handlePurchaseFont(font.id);
+                          }}
+                          disabled={isBuying}
+                          className={`w-full px-3 py-2 rounded-xl border text-sm font-medium transition-all duration-300 text-center
+                            ${isSelected
+                              ? 'border-dream-400 bg-dream-50 dark:bg-dream-500/10 text-dream-600 dark:text-dream-300 shadow-sm'
+                              : isOwned
+                                ? 'border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/5 text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/10'
+                                : 'border-amber-200 dark:border-amber-500/20 bg-amber-50/50 dark:bg-amber-500/5 text-gray-400 dark:text-white/30'
+                            }`}
+                          style={{ fontFamily: isOwned ? font.cssFontFamily : 'inherit' }}
+                        >
+                          {isBuying ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" />
+                          ) : (
+                            <span className="flex items-center justify-center gap-1.5">
+                              {!isOwned && <Lock className="w-3 h-3 text-amber-500 flex-shrink-0" />}
+                              {font.name}
+                            </span>
+                          )}
+                        </button>
+                        {!isOwned && (
+                          <span className="absolute -top-2 -right-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-400 text-white leading-none">
+                            1 credit
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
