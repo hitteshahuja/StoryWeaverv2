@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
 import { useAuth, SignInButton } from '@clerk/clerk-react';
-import { Sparkles, Moon, BookOpen, Shield, Zap, Stars } from 'lucide-react';
+import { Sparkles, Moon, BookOpen, Shield, Zap, Stars, TruckElectric } from 'lucide-react';
 import StarField from '../components/StarField';
 import Footer from '../components/Footer';
 
 export default function LandingPage() {
   const { isSignedIn } = useAuth();
-
+  const WAITINGLIST = true;
   return (
     <div className="relative min-h-screen">
       <StarField />
@@ -45,13 +45,15 @@ export default function LandingPage() {
               <SignInButton mode="modal">
                 <button className="btn-primary text-base px-8 py-4">
                   <Sparkles className="w-5 h-5" />
-                  Start for Free
+                  {WAITINGLIST ? "Join our waiting list" : "Start for Free"}
                 </button>
               </SignInButton>
             )}
+            {!WAITINGLIST &&
             <Link to="/pricing" className="btn-secondary text-base px-8 py-4">
               View Pricing
             </Link>
+}
           </div>
 
           <p className="text-xs text-gray-400 dark:text-white/30 mt-4">3 free stories on signup · No credit card required</p>
@@ -160,7 +162,7 @@ export default function LandingPage() {
       <section className="py-20 px-4 text-center">
         <div className="max-w-2xl mx-auto card border-dream-500/30 shadow-dream-lg">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Ready to weave tonight's dream?</h2>
-          <p className="text-gray-500 dark:text-white/50 mb-8">Start with 3 free stories — no credit card required.</p>
+          {!WAITINGLIST && <p className="text-gray-500 dark:text-white/50 mb-8">Start with 3 free stories — no credit card required.</p> }
           {isSignedIn ? (
             <Link to="/app" className="btn-gold text-base px-8 py-4 inline-flex">
               <Sparkles className="w-5 h-5" /> Create a Story Now
@@ -168,7 +170,7 @@ export default function LandingPage() {
           ) : (
             <SignInButton mode="modal">
               <button className="btn-gold text-base px-8 py-4">
-                <Sparkles className="w-5 h-5" /> Get Started Free
+                <Sparkles className="w-5 h-5" /> {WAITINGLIST ? "Join our waiting list" : "Get Started Free"}
               </button>
             </SignInButton>
           )}

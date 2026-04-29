@@ -1,12 +1,12 @@
 const LegalConfig = {
-  companyName: 'DreamWeaver',
-  legalEntity: 'DreamWeaver Ltd',
-  contactEmail: 'privacy@dreamweaver.ai',
-  dpoEmail: 'dpo@dreamweaver.ai',
+  companyName: 'AI DreamWeaver',
+  legalEntity: 'AI DreamWeaver',
+  contactEmail: 'hello@aidreamweaver.co.uk',
+  dpoEmail: 'hello@aidreamweaver.co.uk',
   effectiveDate: '2 April 2026',
   jurisdiction: 'United Kingdom',
   supervisoryAuthority: 'Information Commissioner\'s Office (ICO)',
-  website: 'https://dreamweaver.ai',
+  website: 'https://www.aidreamweaver.co.uk',
 
   subProcessors: [
     { name: 'OpenAI', purpose: 'Text-to-speech, image generation, content moderation', location: 'USA', adequacy: 'SCCs' },

@@ -19,7 +19,7 @@ export default function CreditModal({ onClose }) {
           </div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">You're out of credits!</h2>
           <p className="text-gray-500 dark:text-white/50 text-sm mt-2 max-w-xs mx-auto">
-            DreamWeaver is currently in beta. Paid plans are coming soon — stay tuned!
+            AI DreamWeaver is currently in beta. Paid plans are coming soon — stay tuned!
           </p>
           <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-dream-500/10 border border-dream-500/20 text-dream-400 text-sm font-medium">
             <span className="w-2 h-2 rounded-full bg-dream-400 animate-pulse" />

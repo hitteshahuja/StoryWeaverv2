@@ -19,7 +19,7 @@ export default function Navbar() {
               <img src={logo} alt="Logo" height={48} width={48} />
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-dream-300 to-purple-300 bg-clip-text text-transparent">
-              DreamWeaver
+              AI DreamWeaver
             </span>
             <span className="text-xs font-bold px-1.5 py-0.5 rounded-md bg-dream-500/20 text-dream-400 border border-dream-500/30 tracking-wide">
               BETA

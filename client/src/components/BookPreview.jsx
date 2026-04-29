@@ -304,7 +304,7 @@ export default function BookPreview({ book, onPrint, onClose, onRefreshImage, cr
                   </div>
                 )}
                 <div className="absolute bottom-4 left-4 text-[10px] font-bold text-black/20 dark:text-white/20 uppercase tracking-widest z-10">
-                  DreamWeaver Books
+                  AI DreamWeaver Books
                 </div>
               </div>
             </div>

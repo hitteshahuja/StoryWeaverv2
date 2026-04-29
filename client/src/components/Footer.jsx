@@ -25,7 +25,7 @@ export default function Footer() {
                 <img src={logo} alt="Logo" height={40} width={40} />
               </div>
               <span className="text-lg font-bold bg-gradient-to-r from-dream-300 to-purple-300 bg-clip-text text-transparent">
-                DreamWeaver
+                AI DreamWeaver
               </span>
             </Link>
             <p className="text-sm text-gray-500 dark:text-white/50 leading-relaxed">
@@ -34,14 +34,14 @@ export default function Footer() {
             </p>
             <div className="flex items-center gap-3 pt-2">
               <a 
-                href="mailto:hello@dreamweaver.ai" 
+                href="mailto:hello@aidreamweaver.co.uk" 
                 className="p-2 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/50 hover:bg-dream-50 dark:hover:bg-dream-500/10 hover:text-dream-500 dark:hover:text-dream-300 transition-colors"
                 aria-label="Email us"
               >
                 <Mail className="w-4 h-4" />
               </a>
               <span className="text-xs text-gray-400 dark:text-white/30">
-                hello@dreamweaver.ai
+                hello@aidreamweaver.co.uk
               </span>
             </div>
           </div>

@@ -11,7 +11,7 @@ const PLANS = [
     name: 'Free',
     price: '£0',
     period: '',
-    description: 'Perfect for trying DreamWeaver',
+    description: 'Perfect for trying AI DreamWeaver',
     credits: '3 Welcome Credits',
     cta: 'Create Your First Story Free',
     type: null, // No Stripe
