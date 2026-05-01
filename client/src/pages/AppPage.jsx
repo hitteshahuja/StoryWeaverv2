@@ -38,7 +38,7 @@ export default function AppPage() {
   ]);
   const [selectedStyle, setSelectedStyle] = useState(availableStyles[0].name);
   const [styleFilter, setStyleFilter] = useState(availableStyles[0].cssFilter);
-  const [pageCount, setPageCount] = useState(10);
+  const [pageCount, setPageCount] = useState(3);
   const [selectedBorder, setSelectedBorder] = useState('None');
   const [selectedFont, setSelectedFont] = useState(DEFAULT_FONT);
   const [selectedTextSize, setSelectedTextSize] = useState(DEFAULT_TEXT_SIZE);

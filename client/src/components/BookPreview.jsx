@@ -248,7 +248,7 @@ export default function BookPreview({ book, onPrint, onClose, onRefreshImage, cr
                     <img
                       src={currentImageSrc}
                       alt={`Page ${current.page_number}`}
-                      className={`w-full h-full ${current.type === 'title' ? 'object-contain' : 'object-cover'} animate-fade-in transition-all duration-700 relative z-0`}
+                      className={`w-full h-full ${current.type === 'title' ? 'object-cover' : 'object-contain'} animate-fade-in transition-all duration-700 relative z-0`}
                       style={getFilterStyle()}
                       key={`img-${currentPage}`}
                     />

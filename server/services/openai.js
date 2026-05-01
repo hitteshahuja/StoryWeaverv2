@@ -22,7 +22,7 @@ const MODELS = {
   imageGeneration: process.env.MODEL_IMAGE_GENERATION || '@openai/gpt-image-1',
   tts: process.env.MODEL_TTS || 'tts-1',
   ttsVoice: process.env.MODEL_TTS_VOICE || 'nova',
-  moderation: process.env.MODEL_MODERATION || '@gemini/gemini-2.0-flash-lite',
+  moderation: process.env.MODEL_MODERATION || '@gemini/gemini-3-flash-preview',
   themeAnalysis: process.env.MODEL_THEME_ANALYSIS || '@gemini/gemini-2.0-flash-lite',
 };
 
@@ -70,6 +70,7 @@ STRICT RULES — you must follow every rule with no exceptions:
 11. Write in second-person ("you") or third-person — never first-person.
 12. Incorporate ALL character names provided, the location, and the specific theme.
 13. If multiple characters are provided, the story MUST feature all of them. Show their unique friendship, teamwork, or bond. Give each character moments to shine.
+14. Write like a real published children's book — natural, flowing prose. AVOID mechanical repetition like "Hop, hop, hop!" or "Play, play, play!"
 
 Your stories should feel like a warm hug. Think friendly animals, curious exploration, cozy moments, starlit skies, and gentle adventures. Keep it playful and heartwarming, not magical or fantastical.`;
 
@@ -483,9 +484,9 @@ async function generateBook(imageUrls,
   // Age-appropriate writing guidelines
   let ageGuidelines = '';
   if (age <= 2) {
-    ageGuidelines = `AGE-APPROPRIATE WRITING (age ${age} — toddler): Use VERY simple words (1-2 syllables). Short sentences (3-6 words). Focus on sounds, colors, animals, and repetition. E.g., "The bunny hops. Hop, hop, hop!"`;
+    ageGuidelines = `AGE-APPROPRIATE WRITING (age ${age} — toddler): Use VERY simple words (1-2 syllables). Short sentences (3-6 words). Focus on sounds, colors, animals, and natural rhythm. Use gentle action words. E.g., "The bunny hops. Maya claps. The sun is warm."`;
   } else if (age <= 4) {
-    ageGuidelines = `AGE-APPROPRIATE WRITING (age ${age} — preschooler): Use simple, familiar words. Short sentences (5-10 words). Include repetition, rhymes, and onomatopoeia. E.g., "Luna found a sparkly stone. It glowed like the moon!"`;
+    ageGuidelines = `AGE-APPROPRIATE WRITING (age ${age} — preschooler): Use simple, familiar words. Short sentences (5-10 words). Include natural rhythm and occasional rhymes. Use sensory details (soft, cold, bright). E.g., "Luna found a sparkly stone. It glowed like the moon. She held it close and smiled."`;
   } else if (age <= 6) {
     ageGuidelines = `AGE-APPROPRIATE WRITING (age ${age} — early reader): Use clear, engaging language. Medium sentences (8-15 words). Include simple dialogue and gentle humor. E.g., "'Look!' said Milo, pointing at the golden butterfly dancing through the trees."`;
   } else if (age <= 9) {
@@ -512,6 +513,13 @@ ${ageGuidelines}
 
 ${featureBlock}
 
+WRITING STYLE RULES:
+- Write like a real published children's book — natural, flowing prose
+- AVOID mechanical repetition (e.g., "Hop, hop, hop!" or "Play, play, play!")
+- Use varied sentence structures and natural rhythm
+- Focus on sensory details, emotions, and gentle action
+- Keep language age-appropriate but literary, not formulaic
+
 Format your response as a JSON array of ${pageCount} objects. Each object must have:
 - "page": Number (1 to ${pageCount})
 - "type": "title" (page 1), "story" (pages 2 to ${pageCount - 1}), or "conclusion" (page ${pageCount}).
@@ -521,7 +529,8 @@ Format your response as a JSON array of ${pageCount} objects. Each object must h
   1. Exactly ONE sentence. NO multiple actions. NO "and then". NO listing sequences.
   2. Exactly ONE verb. Focus on a single state (e.g., "${childName} is sitting" or "${childName} is reaching").
   3. NO TEXT: NO "zoom" bubbles, NO words, NO letters. Just the illustration.
-  4. CONSISTENCY: Describe the protagonst's hair, eyes, and EXACT outfit in this one sentence.
+  4. CONSISTENCY: Describe the protagonist's hair, eyes, and EXACT outfit in this one sentence.
+  5. ${hasMultiple ? `CHARACTER COUNT: Show ALL ${names.length} characters (${allNamesList}) in EVERY image. They are together on this adventure.` : `CHARACTER COUNT: Show ONLY ${childName} — ONE child. Do NOT create duplicate children, twins, or imaginary friends unless the story explicitly mentions them.`}
 
 Structure:
 - Page 1 (TITLE PAGE): 
@@ -549,9 +558,9 @@ There are ${imageUrls.length} images to inspire the story journey. Spread the im
 CRITICAL: You are looking at photos of REAL ${hasMultiple ? 'people/characters' : 'child'}. You must:
 1. Study their exact appearance from the photos (hair, eyes, face, build, clothing)
 2. Use the pre-extracted feature description provided in the system prompt
-3. Start EVERY image_prompt with the full physical description(s) so DALL-E 3 draws ${hasMultiple ? 'ALL the specific characters' : 'this SPECIFIC child'}
+3. ${hasMultiple ? `Start EVERY image_prompt with descriptions of ALL characters so the AI draws all of them together` : `Start EVERY image_prompt with the child's physical description so the AI draws THIS SPECIFIC CHILD (not multiple copies)`}
 4. Make the story reflect the ${hasMultiple ? "characters'" : "child's"} actual personality traits, not generic traits
-5. ${hasMultiple ? `The protagonists are "${allNamesList}" — you MUST use these exact names throughout the story text, in dialogue, narration, and descriptions. ALL characters must be present in EVERY scene. They are on this adventure TOGETHER.` : `The protagonist's name is "${childName}" — you MUST use this exact name throughout the story text, in dialogue, narration, and descriptions. Never use generic terms like "the child" or "the little one" when referring to the protagonist. Always use "${childName}".`}
+5. ${hasMultiple ? `The protagonists are "${allNamesList}" — you MUST use these exact names throughout the story text, in dialogue, narration, and descriptions. ALL characters must be present in EVERY scene. They are on this adventure TOGETHER.` : `The protagonist's name is "${childName}" — you MUST use this exact name throughout the story text, in dialogue, narration, and descriptions. Never use generic terms like "the child" or "the little one" when referring to the protagonist. Always use "${childName}". IMPORTANT: Show ONLY ${childName} in the illustrations — do not create duplicate children or imaginary friends unless explicitly mentioned in the story.`}
 ${customPrompt ? `\n6. Additional instructions from the parent: ${customPrompt}` : ''}`
     }
   ];
@@ -721,7 +730,7 @@ const { saveBase64, urlToDataUrl } = require('./localStorage');
  * Supports Gemini image models (via Google SDK) and OpenAI DALL-E (via Portkey).
  */
 async function generateAIImage(prompt, style = 'Watercolor') {
-  const fullPrompt = `A beautiful children's book illustration in the precise art style of: ${style}. Vibrant, child-friendly, consistent. NO text, no words, no letters in the image. SCENE DETAILS: ${prompt}. All characters must maintain identical physical features throughout.`;
+  const fullPrompt = `A beautiful children's book illustration in the precise art style of: ${style}. Vibrant, child-friendly, consistent. NO text, no words, no letters in the image. SCENE DETAILS: ${prompt}. IMPORTANT: If the scene describes ONE character, show ONLY that ONE character. Do not duplicate or multiply characters. Each character should maintain consistent physical features across different illustrations.`;
 
   try {
     // Gemini image models — use Google SDK directly
@@ -729,7 +738,8 @@ async function generateAIImage(prompt, style = 'Watercolor') {
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
       const modelName = MODELS.imageGeneration.replace(/^@[^/]+\//, '');
       const model = genAI.getGenerativeModel({ model: modelName });
-
+      console.log
+('[IMAGE GEN] Generating with Gemini:', modelName);
       let attempts = 0;
       const maxAttempts = 3;
 
