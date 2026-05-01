@@ -68,7 +68,7 @@ export default function LandingPage() {
       </section>
 
       {/* Showcase Slider */}
-      <section className="py-20 px-4">
+      <section className="py-4 px-4">
         <ShowcaseSlider />
       </section>
 
