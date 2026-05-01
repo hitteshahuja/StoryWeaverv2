@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import { useAuth, SignInButton } from '@clerk/clerk-react';
-import { Sparkles, Moon, BookOpen, Shield, Zap, Stars, TruckElectric } from 'lucide-react';
+import { Sparkles, Moon, BookOpen, Shield, Zap, Stars } from 'lucide-react';
 import StarField from '../components/StarField';
 import Footer from '../components/Footer';
+import ShowcaseSlider from '../components/ShowcaseSlider';
 
 export default function LandingPage() {
   const { isSignedIn } = useAuth();
@@ -16,7 +17,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-2 badge-dream mb-8 animate-fade-in">
             <Stars className="w-3.5 h-3.5" />
-            <span>AI-powered bedtime stories for little dreamers</span>
+            <span>AI-powered stories for little dreamers</span>
           </div>
 
           <h1 className="text-5xl md:text-7xl font-bold mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
@@ -41,19 +42,25 @@ export default function LandingPage() {
                 <Sparkles className="w-5 h-5" />
                 Generate a Story
               </Link>
+            ) : WAITINGLIST ? (
+              <Link to="https://app.formbricks.com/s/cmo6zx83fzgp7z701fktf7p4z" className="btn-primary text-base px-8 py-4">
+                <Sparkles className="w-5 h-5" />
+                Join our waiting list
+              </Link>
             ) : (
-              <SignInButton mode="modal">
-                <button className="btn-primary text-base px-8 py-4">
-                  <Sparkles className="w-5 h-5" />
-                  {WAITINGLIST ? "Join our waiting list" : "Start for Free"}
-                </button>
+              <SignInButton
+                mode="modal"
+                className="btn-primary text-base px-8 py-4"
+              >
+                <Sparkles className="w-5 h-5" />
+                Start for Free
               </SignInButton>
             )}
-            {!WAITINGLIST &&
-            <Link to="/pricing" className="btn-secondary text-base px-8 py-4">
-              View Pricing
-            </Link>
-}
+            {!WAITINGLIST && (
+              <Link to="/pricing" className="btn-secondary text-base px-8 py-4">
+                View Pricing
+              </Link>
+            )}
           </div>
 
           <p className="text-xs text-gray-400 dark:text-white/30 mt-4">3 free stories on signup · No credit card required</p>
@@ -81,6 +88,11 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Showcase Slider */}
+      <section className="py-20 px-4">
+        <ShowcaseSlider />
       </section>
 
       {/* Features */}
@@ -120,7 +132,7 @@ export default function LandingPage() {
               {
                 icon: <Zap className="w-6 h-6" />,
                 title: 'Instant Generation',
-                desc: 'Photo to story in under 10 seconds, powered by GPT-4o.',
+                desc: 'Photo to story in under 10 seconds, powered by our latest image generation models.',
                 color: 'text-purple-300',
                 bg: 'bg-purple-500/10',
                 disabled: false,
@@ -167,11 +179,18 @@ export default function LandingPage() {
             <Link to="/app" className="btn-gold text-base px-8 py-4 inline-flex">
               <Sparkles className="w-5 h-5" /> Create a Story Now
             </Link>
+          ) : WAITINGLIST ? (
+            <Link to="https://app.formbricks.com/s/cmo6zx83fzgp7z701fktf7p4z" className="btn-primary text-base px-8 py-4">
+              <Sparkles className="w-5 h-5" />
+              Join our waiting list
+            </Link>
           ) : (
-            <SignInButton mode="modal">
-              <button className="btn-gold text-base px-8 py-4">
-                <Sparkles className="w-5 h-5" /> {WAITINGLIST ? "Join our waiting list" : "Get Started Free"}
-              </button>
+            <SignInButton
+              mode="modal"
+              className="btn-primary text-base px-8 py-4"
+            >
+              <Sparkles className="w-5 h-5" />
+              Start for Free
             </SignInButton>
           )}
         </div>

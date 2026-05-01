@@ -292,23 +292,52 @@ router.post('/proxy-image', requireAuth, async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: 'url required' });
 
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.error('[proxy-image] upstream error:', response.status, url.substring(0, 100));
-      return res.status(response.status).json({ error: 'Failed to fetch image' });
+  const maxRetries = 2;
+  let lastError;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      // Add 15 second timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        console.error('[proxy-image] upstream error:', response.status, url.substring(0, 100));
+        return res.status(response.status).json({ error: 'Failed to fetch image' });
+      }
+
+      const contentType = response.headers.get('content-type') || 'image/png';
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const base64 = buffer.toString('base64');
+
+      return res.json({ data: `data:${contentType};base64,${base64}` });
+    } catch (err) {
+      lastError = err;
+      
+      if (err.name === 'AbortError') {
+        console.error(`[proxy-image] timeout attempt ${attempt + 1}/${maxRetries + 1}:`, url);
+      } else {
+        console.error(`[proxy-image] error attempt ${attempt + 1}/${maxRetries + 1}:`, err.message, 'URL:', url);
+      }
+
+      // Don't retry on last attempt
+      if (attempt < maxRetries) {
+        // Exponential backoff: 500ms, 1000ms
+        await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+        continue;
+      }
     }
-
-    const contentType = response.headers.get('content-type') || 'image/png';
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const base64 = buffer.toString('base64');
-
-    res.json({ data: `data:${contentType};base64,${base64}` });
-  } catch (err) {
-    console.error('[proxy-image] error:', err.message);
-    res.status(500).json({ error: 'Failed to proxy image' });
   }
+
+  // All retries failed
+  if (lastError?.name === 'AbortError') {
+    return res.status(504).json({ error: 'Image fetch timeout after retries' });
+  }
+  return res.status(500).json({ error: 'Failed to proxy image after retries' });
 });
 
 // POST /api/books/tts — Generate text-to-speech audio for a page

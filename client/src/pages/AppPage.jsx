@@ -13,7 +13,6 @@ import { booksAPI, usersAPI } from '../lib/api';
 import { useDbUser } from '../context/UserContext';
 import { FONTS, DEFAULT_FONT, getFontById, getGoogleFontsUrl, TEXT_SIZES, DEFAULT_TEXT_SIZE } from '../config/fonts';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 export default function AppPage() {
   const { isSignedIn } = useAuth();

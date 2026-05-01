@@ -13,6 +13,7 @@ export default function BookPreview({ book, onPrint, onClose, onRefreshImage, cr
   const [customPrompt, setCustomPrompt] = useState('');
   const [currentImageSrc, setCurrentImageSrc] = useState(null);
   const [imageLoading, setImageLoading] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const pages = book.pages || [];
   const totalSpreads = pages.length;
   const current = pages[currentPage];
@@ -25,13 +26,22 @@ export default function BookPreview({ book, onPrint, onClose, onRefreshImage, cr
     const imageUrl = current?.ai_image_url || current?.image_url;
     if (imageUrl) {
       setImageLoading(true);
-      resolveImageUrl(imageUrl).then((src) => {
-        setCurrentImageSrc(src);
-        setImageLoading(false);
-      });
+      setImageError(false);
+      resolveImageUrl(imageUrl)
+        .then((src) => {
+          setCurrentImageSrc(src);
+          setImageLoading(false);
+        })
+        .catch((err) => {
+          console.error('Failed to load image:', err);
+          setImageError(true);
+          setImageLoading(false);
+          setCurrentImageSrc(null);
+        });
     } else {
       setCurrentImageSrc(null);
       setImageLoading(false);
+      setImageError(false);
     }
   }, [current?.ai_image_url, current?.image_url]);
 
@@ -248,6 +258,18 @@ export default function BookPreview({ book, onPrint, onClose, onRefreshImage, cr
                         <div className="flex flex-col items-center gap-3">
                           <div className="w-10 h-10 border-4 border-dream-400 border-t-transparent rounded-full animate-spin" />
                           <p className="text-white text-sm font-bold uppercase tracking-widest animate-pulse">Loading image...</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {imageError && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
+                        <div className="flex flex-col items-center gap-3 text-center px-4">
+                          <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
+                            <X className="w-6 h-6 text-red-400" />
+                          </div>
+                          <p className="text-white text-sm font-bold">Cannot load image</p>
+                          <p className="text-white/60 text-xs max-w-xs">The image failed to load. Try refreshing the page or check your connection.</p>
                         </div>
                       </div>
                     )}
