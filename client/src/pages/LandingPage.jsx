@@ -65,29 +65,6 @@ export default function LandingPage() {
 
           <p className="text-xs text-gray-400 dark:text-white/30 mt-4">3 free stories on signup · No credit card required</p>
         </div>
-
-        {/* Floating preview card */}
-        <div className="mt-16 max-w-lg mx-auto animate-float">
-          <div className="card border-dream-500/30 shadow-dream-lg text-left">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-dream-500 to-purple-600 flex items-center justify-center">
-                <Moon className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 dark:text-white/40">Tonight's story</p>
-                <p className="font-semibold text-gray-900 dark:text-white">Cloudberry's Moonlight Voyage</p>
-              </div>
-            </div>
-            <p className="text-gray-600 dark:text-white/70 text-sm leading-relaxed">
-              "In a land where the stars were made of honey, a little bear named Cloudberry discovered 
-              a tiny boat at the edge of the Silver Lake. The moonbeams tickled her fuzzy ears as she 
-              climbed in and began to drift..."
-            </p>
-            <div className="mt-4 flex items-center gap-2">
-              <span className="badge-gold">Favourite ⭐</span>
-            </div>
-          </div>
-        </div>
       </section>
 
       {/* Showcase Slider */}
