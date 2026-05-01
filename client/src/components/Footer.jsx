@@ -29,7 +29,7 @@ export default function Footer() {
               </span>
             </Link>
             <p className="text-sm text-gray-500 dark:text-white/50 leading-relaxed">
-              AI-powered magical bedtime stories for little dreamers. 
+              AI-powered magical stories for little dreamers. 
               Turn photos into personalized adventures.
             </p>
             <div className="flex items-center gap-3 pt-2">

@@ -19,7 +19,7 @@ const SHOWCASE_STORIES = [
   },
   {
     id: 3,
-    title: "Sarah's pink drive",
+    title: "Sarah's Pink Drive",
     description: "A mermaid princess explores coral castles and makes new friends",
     image: '/showcase/slides_image_3.png', // Reusing available image as placeholder
     theme: 'Garden Fantasy',
