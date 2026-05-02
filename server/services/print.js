@@ -1,9 +1,42 @@
+const fs = require('fs');
+const path = require('path');
+
 async function handlePrint(book) {
     const doc = new jsPDF('p', 'pt', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 50;
     const contentWidth = pageWidth - margin * 2;
+
+    // Load logo as base64
+    const logoPath = path.join(__dirname, '../public/dreamweaverlogo3.png');
+    let logoBase64 = null;
+    try {
+        const logoBuffer = fs.readFileSync(logoPath);
+        logoBase64 = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+    } catch (err) {
+        console.warn('Logo not found for PDF watermark:', err.message);
+    }
+
+    // Helper function to add watermark to each page
+    const addWatermark = () => {
+        const watermarkText = 'Created with AI Dreamweaver';
+        const logoSize = 12; // Height of logo in points
+        const textX = pageWidth - margin - 120;
+        const textY = pageHeight - 15;
+        
+        // Add logo if available
+        if (logoBase64) {
+            const logoX = textX - logoSize - 5; // 5pt gap between logo and text
+            doc.addImage(logoBase64, 'PNG', logoX, textY - logoSize + 2, logoSize, logoSize);
+        }
+        
+        // Add text
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(180, 180, 180);
+        doc.text(watermarkText, textX, textY, { align: 'left' });
+    };
 
     const getImageFormat = (dataUrl) => {
         if (dataUrl.startsWith('data:image/png')) return 'PNG';
@@ -114,6 +147,9 @@ async function handlePrint(book) {
             doc.setTextColor(160, 160, 160);
             doc.text(`Page ${page.page_number}`, pageWidth / 2, pageHeight - 30, { align: 'center' });
         }
+
+        // Add watermark to every page
+        addWatermark();
     }
 
     doc.save(`${book.title.replace(/\s+/g, '_')}.pdf`);

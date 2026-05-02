@@ -28,7 +28,6 @@ export function UserProvider({ children }) {
           email: clerkUser.primaryEmailAddress?.emailAddress,
           name: clerkUser.fullName,
         });
-        console.log("User Data", data);
         setDbUser(data);
       } catch (err) {
         console.error('User sync failed:', err);

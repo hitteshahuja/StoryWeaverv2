@@ -228,9 +228,10 @@ IMPORTANT: Be extremely specific about physical features for each visible charac
 - "clothing": Describe what the child is wearing in detail (colors, patterns, style)
 - "personality_traits": Based on facial expression, posture, and body language, describe 3-4 personality traits you observe (e.g., adventurous, curious, joyful, shy, energetic)
 - "interests": Based on the photo context (background, props, clothing), suggest 2-3 things the child might be interested in
+- "setting_context": Describe the actual location/setting visible in the photos (e.g., "museum with exhibits and statues", "beach with sand and ocean", "park with trees and playground", "home with furniture"). Be specific and accurate — this will help the story match the real environment.
 - "character_description": Write a rich, detailed 2-sentence description of how "${safeChildName}" would appear as the protagonist of a heartwarming children's book. This should paint a vivid picture that preserves their EXACT features in a warm, inviting style. Be very specific about physical appearance. You MUST use the name "${safeChildName}" in this description — do NOT invent a different name.
 
-IMPORTANT: Be extremely specific about physical features. Generic descriptions like "a young child" are NOT acceptable. Describe exact colors, shapes, and distinguishing characteristics. This will be used to generate illustrations that must look like this specific child.`}`,
+IMPORTANT: Be extremely specific about physical features. Generic descriptions like "a young child" are NOT acceptable. Describe exact colors, shapes, and distinguishing characteristics. This will be used to generate illustrations that must look like this specific child. Also, accurately identify the setting — don't guess or invent locations.`}`,
     }
   ];
 
@@ -457,6 +458,7 @@ CHARACTERS' EXTRACTED FEATURES (use these EXACTLY in every image_prompt):
 ${charBlocks}
 ${childFeatures.group_description ? `\n- Group Dynamic: ${childFeatures.group_description}` : ''}
 ${childFeatures.combined_character_description ? `\n- Combined Scene Description: ${childFeatures.combined_character_description}` : ''}
+${childFeatures.setting_context ? `\n- ACTUAL PHOTO SETTING: ${childFeatures.setting_context} — The story MUST respect this real-world context. Do not misidentify objects or locations.` : ''}
 
 CRITICAL: ALL ${childFeatures.characters.length} characters MUST appear in EVERY image_prompt and EVERY story page. They are on this adventure TOGETHER.`;
   }
@@ -468,6 +470,7 @@ CHILD'S EXTRACTED FEATURES (use these EXACTLY in every image_prompt):
 - Clothing: ${childFeatures.clothing || 'Colorful casual clothes'}
 - Personality: ${ensureArray(childFeatures.personality_traits).join(', ')}
 - Character Description: ${childFeatures.character_description || ''}
+${childFeatures.setting_context ? `\n- ACTUAL PHOTO SETTING: ${childFeatures.setting_context} — The story MUST respect this real-world context. Do not misidentify objects or locations.` : ''}
 `;
 }
 
@@ -508,43 +511,67 @@ async function generateBook(imageUrls,
     ? `And ${names.join(' and ')} drifted off to sleep, smiling softly after their wonderful day together...`
     : `And ${childName} drifted off to sleep, smiling softly after their wonderful day...`;
 
-  const SYSTEM_PROMPT_BOOK = `You are a world-class children's book author and illustrator. 
+const SYSTEM_PROMPT_BOOK = `Act as a world-class children's book author specializing in 'read-aloud' bedtime stories for toddlers and preschoolers.
 ${ageGuidelines}
 
 ${featureBlock}
+Your goal is to turn image descriptions into a lyrical, sensory-rich journey. Instead of just listing actions, use sensory language from ${theme}.
+
+LITERARY CRAFT RULES:
+- THE NARRATIVE TAPER: The story must physically slow down. Pages 2-3 should be active and curious; the final pages should use shorter, softer, and more rhythmic sentences to mimic the transition to sleep.
+- SENSORY ANCHORING: Use the 'Rule of Three' for descriptions (e.g., "The moss was soft, springy, and emerald green").
+- ONOMATOPOEIA: Include gentle, interactive sounds (e.g., "Squelch-squelch," "Ribbit-tap," or "Hush-shush") that a parent and child can mimic together.
+- EMOTIONAL ARC: Ensure ${childName} has an internal feeling—curiosity, wonder, or a desire for friendship—rather than just performing tasks.
+- AVOID mechanical repetition or formulaic "The [Subject] [Verb]" structures.
 
 WRITING STYLE RULES:
-- Write like a real published children's book — natural, flowing prose
-- AVOID mechanical repetition (e.g., "Hop, hop, hop!" or "Play, play, play!")
-- Use varied sentence structures and natural rhythm
-- Focus on sensory details, emotions, and gentle action
-- Keep language age-appropriate but literary, not formulaic
+- Write like a real published children's book — natural, flowing prose.
+- Use varied sentence structures and natural rhythm suitable for reading aloud.
+- Focus on textures (fuzzy, cool, crinkly) and atmosphere (shimmering, golden, quiet).
+- Keep language age-appropriate but literary, not clinical or simplistic.
+
+NARRATIVE STRUCTURE & CONTINUITY:
+- Create ONE cohesive story with a clear beginning, middle, and end
+- Maintain setting continuity — the story should take place in ONE primary location
+- Do NOT jump between unrelated locations (museum → park → bedroom) without clear transitions
+- Each page should flow naturally to the next, building a unified narrative arc
+- If photos show different settings, choose the MOST PROMINENT one and keep the story there
+- The story should feel like one complete adventure, not disconnected scenes
 
 Format your response as a JSON array of ${pageCount} objects. Each object must have:
 - "page": Number (1 to ${pageCount})
-- "type": "title" (page 1), "story" (pages 2 to ${pageCount - 1}), or "conclusion" (page ${pageCount}).
-- "content": The text for that page. Story pages should be 40-60 words. Simple, warm prose.
+- "type": "title", "story", or "conclusion".
+- "content": The text for that page. Story pages should be 40-60 words of warm, evocative prose.
 - "image_prompt": A ONE-SENTENCE description of a single frozen moment. 
   STRICT RULES:
-  1. Exactly ONE sentence. NO multiple actions. NO "and then". NO listing sequences.
-  2. Exactly ONE verb. Focus on a single state (e.g., "${childName} is sitting" or "${childName} is reaching").
-  3. NO TEXT: NO "zoom" bubbles, NO words, NO letters. Just the illustration.
-  4. CONSISTENCY: Describe the protagonist's hair, eyes, and EXACT outfit in this one sentence.
-  5. ${hasMultiple ? `CHARACTER COUNT: Show ALL ${names.length} characters (${allNamesList}) in EVERY image. They are together on this adventure.` : `CHARACTER COUNT: Show ONLY ${childName} — ONE child. Do NOT create duplicate children, twins, or imaginary friends unless the story explicitly mentions them.`}
+  1. Exactly ONE sentence. Focus on a single state (e.g., "${childName} is peering into the water").
+  2. ABSOLUTELY NO TEXT IN ILLUSTRATIONS: The image_prompt must NEVER request text, words, letters, captions, labels, speech bubbles, or any written language. Illustrations are pure visual art only. Text will be added separately on the page layout. If you include text requests in image_prompt, the illustration will fail.
+  3. CHARACTER APPEARANCE CONSISTENCY - CRITICAL: ${childName} MUST look IDENTICAL in EVERY illustration. You MUST include these EXACT details in EVERY SINGLE image_prompt:
+     - Hair: [exact color, style, length from extracted features]
+     - Eyes: [exact color from extracted features]
+     - Clothing: [EXACT outfit - if wearing a black tiger shirt and blue shorts on page 1, MUST wear the SAME black tiger shirt and blue shorts on ALL pages]
+     - Skin tone: [exact description from extracted features]
+     - Distinctive features: [glasses, freckles, dimples, etc. from extracted features]
+     DO NOT change clothing colors, patterns, or styles between pages. DO NOT add or remove accessories. The character must be visually identical across all illustrations.
+  4. ${hasMultiple ? `CHARACTER COUNT: Show ALL ${names.length} characters together.` : `CHARACTER COUNT: Show ONLY ${childName}.`}
+  5. SIZE & SCALE CONSISTENCY: If an object is described as "giant", "huge", "towering", or "massive" in one page, it MUST remain that size in ALL subsequent pages. Do NOT make a giant frog suddenly small or a towering statue suddenly tiny. Maintain relative proportions throughout the story. If the child is looking UP at something, it should stay large enough to look up at.
+  6. ART STYLE CONSISTENCY: The art style "${style}" MUST be applied to ALL illustrations INCLUDING THE TITLE PAGE. Every page should have the same visual style. Do NOT use a different style for the cover/title page.
 
 Structure:
 - Page 1 (TITLE PAGE): 
-  - "content": ONLY the book title (e.g. "${hasMultiple ? names.join(' & ') + "'s" : childName + "'s"} Great Quest").
-  - "image_prompt": One-sentence cover depicting ${characterRef} centered and happy. Art Style: "${style}".
+  - "content": ONLY the book title (e.g. "${childName}'s Secret Garden").
+  - "image_prompt": One-sentence cover depicting ${characterRef} centered and happy in "${location}". Art Style: "${style}".
   - "dedication": "Created by ${dedicatedBy}"
-- Pages 2 to ${pageCount - 1} (STORY PAGES): One-sentence description of the character in a single pose in "${location}".
+- Pages 2 to ${pageCount - 1} (STORY PAGES): One-sentence description of the character in a single pose. CRITICAL: Every page MUST be in "${location}" - do NOT change locations.
 - Page ${pageCount} (THE END PAGE):
-  - "content": "${closingLine}"
+  - "content": A final, whispering closing line like "${closingLine}" - still in "${location}".
   - "image_prompt": null
 
-${protagonistLabel}: "${protagonistNames}". Repeat their physical traits and current outfit in EVERY single-sentence image_prompt.
-Setting: "${location}" with a theme of "${theme}".
+${protagonistLabel}: "${protagonistNames}". Repeat physical traits and current outfit in EVERY image_prompt.
+Setting: "${location}" - EVERY SINGLE PAGE must be in this location. Do NOT introduce forest, home, park, or any other location.
 Art Style: "${style}".
+
+LOCATION ENFORCEMENT: Before writing each page, remind yourself: "This page is in ${location}." Do NOT let the story drift to other locations.
 
 STRICT: Only return the JSON array. Every image_prompt MUST be exactly one single sentence describing a single frozen moment. Any multi-sentence prompt or list of actions is a failure.`;
 
@@ -553,7 +580,42 @@ STRICT: Only return the JSON array. Every image_prompt MUST be exactly one singl
       type: 'text',
       text: `Create a ${pageCount}-page book for "${allNamesList}" in a "${style}" style. 
 The theme is "${theme}" and the story takes place in "${location}".
-There are ${imageUrls.length} images to inspire the story journey. Spread the images across the story pages as appropriate.
+There are ${imageUrls.length} images to inspire the story journey.
+
+SETTING LOCK - ABSOLUTELY CRITICAL:
+- FIRST: Analyze all photos and identify the PRIMARY setting (museum, park, home, beach, etc.)
+- THEN: The ENTIRE story MUST take place in that ONE setting
+- FORBIDDEN: Jumping between locations (museum → forest → home)
+- FORBIDDEN: Inventing new locations not visible in the photos
+- REQUIRED: If the primary setting is a museum, ALL ${pageCount} pages happen in the museum
+- REQUIRED: If the primary setting is a park, ALL ${pageCount} pages happen in the park
+- EXCEPTION: Only if the user explicitly requests a journey (e.g., "museum then home"), use clear transitions
+- The story arc should be: arrival → exploration → discovery → wonder → rest (all in ONE place)
+
+NARRATIVE COHERENCE RULES:
+- The story MUST have a clear beginning, middle, and end in ONE primary setting
+- Each page must reference the SAME location established on page 1
+- Do NOT introduce new locations after page 1
+- Maintain logical flow: each page should naturally lead to the next IN THE SAME PLACE
+- The story should feel like ONE cohesive adventure in ONE location
+
+VISUAL CONSISTENCY RULES:
+- Maintain SIZE and SCALE consistency for all objects throughout the story
+- If something is "giant", "huge", "towering", or "massive" on one page, it stays that size on ALL pages
+- Do NOT make a giant frog suddenly small, or a towering statue suddenly tiny
+- Keep relative proportions consistent: if the child looks UP at something, it should remain large enough to look up at
+- Important objects (statues, animals, landmarks) should maintain their visual prominence across all illustrations
+
+CHARACTER APPEARANCE CONSISTENCY - ABSOLUTELY CRITICAL:
+- ${childName} MUST look IDENTICAL in every single illustration
+- CLOTHING: If ${childName} wears a black tiger shirt and blue shorts on page 1, they wear the EXACT SAME black tiger shirt and blue shorts on ALL pages
+- DO NOT change shirt color (black → gray), pattern changes, or add/remove clothing items
+- DO NOT change shorts style (solid → striped) or add/remove shoes/socks
+- HAIR: Must be the exact same color, style, and length in every image
+- EYES: Must be the exact same color in every image
+- SKIN TONE: Must be consistent across all illustrations
+- ACCESSORIES: If present on page 1 (glasses, hat, etc.), must be present on ALL pages
+- Every image_prompt MUST explicitly describe the COMPLETE outfit to ensure consistency
 
 CRITICAL: You are looking at photos of REAL ${hasMultiple ? 'people/characters' : 'child'}. You must:
 1. Study their exact appearance from the photos (hair, eyes, face, build, clothing)
@@ -561,7 +623,8 @@ CRITICAL: You are looking at photos of REAL ${hasMultiple ? 'people/characters' 
 3. ${hasMultiple ? `Start EVERY image_prompt with descriptions of ALL characters so the AI draws all of them together` : `Start EVERY image_prompt with the child's physical description so the AI draws THIS SPECIFIC CHILD (not multiple copies)`}
 4. Make the story reflect the ${hasMultiple ? "characters'" : "child's"} actual personality traits, not generic traits
 5. ${hasMultiple ? `The protagonists are "${allNamesList}" — you MUST use these exact names throughout the story text, in dialogue, narration, and descriptions. ALL characters must be present in EVERY scene. They are on this adventure TOGETHER.` : `The protagonist's name is "${childName}" — you MUST use this exact name throughout the story text, in dialogue, narration, and descriptions. Never use generic terms like "the child" or "the little one" when referring to the protagonist. Always use "${childName}". IMPORTANT: Show ONLY ${childName} in the illustrations — do not create duplicate children or imaginary friends unless explicitly mentioned in the story.`}
-${customPrompt ? `\n6. Additional instructions from the parent: ${customPrompt}` : ''}`
+6. OBSERVE THE ACTUAL SETTING: Look carefully at the background, environment, and objects in the photos. If ${childName} is in a museum, library, park, beach, or specific location, the story MUST accurately reflect that real setting. Do NOT invent a different setting or misidentify objects (e.g., don't call a statue a "toy" or a museum exhibit a "playground item"). The story should feel authentic to where the photos were actually taken.
+${customPrompt ? `\n7. Additional instructions from the parent: ${customPrompt}` : ''}`
     }
   ];
 
@@ -634,6 +697,53 @@ ${customPrompt ? `\n6. Additional instructions from the parent: ${customPrompt}`
       .replace(/,\s*\}/g, '}');
 
     pages = JSON.parse(fixableJson);
+    
+    // LOCATION CONSISTENCY VALIDATION
+    // Check if pages are jumping between different locations
+    const locationKeywords = {
+      museum: ['museum', 'exhibit', 'gallery', 'statue', 'display'],
+      park: ['park', 'playground', 'swing', 'slide', 'outdoor', 'trees', 'grass'],
+      home: ['home', 'house', 'room', 'bedroom', 'kitchen', 'living room'],
+      beach: ['beach', 'sand', 'ocean', 'sea', 'waves', 'shore'],
+      forest: ['forest', 'woods', 'trees', 'trail', 'nature'],
+      library: ['library', 'books', 'shelves', 'reading'],
+      school: ['school', 'classroom', 'desk', 'teacher']
+    };
+    
+    const detectLocation = (text) => {
+      const lowerText = text.toLowerCase();
+      for (const [location, keywords] of Object.entries(locationKeywords)) {
+        if (keywords.some(keyword => lowerText.includes(keyword))) {
+          return location;
+        }
+      }
+      return 'unknown';
+    };
+    
+    // Detect primary location from first few pages
+    const firstPageLocations = pages.slice(0, 3).map(p => 
+      detectLocation((p.content || '') + ' ' + (p.image_prompt || ''))
+    ).filter(loc => loc !== 'unknown');
+    
+    const primaryLocation = firstPageLocations[0] || 'unknown';
+    
+    // Check for location jumps
+    const locationJumps = [];
+    pages.forEach((page, idx) => {
+      if (idx === 0) return; // Skip title page
+      const pageLocation = detectLocation((page.content || '') + ' ' + (page.image_prompt || ''));
+      if (pageLocation !== 'unknown' && pageLocation !== primaryLocation) {
+        locationJumps.push({ page: idx + 1, from: primaryLocation, to: pageLocation });
+      }
+    });
+    
+    if (locationJumps.length > 0) {
+      console.warn('[BOOK GEN] WARNING: Location inconsistency detected!');
+      console.warn('[BOOK GEN] Primary location:', primaryLocation);
+      console.warn('[BOOK GEN] Location jumps:', locationJumps);
+      // Log but don't fail - the story might have intentional transitions
+    }
+    
   } catch (e) {
     console.error('[BOOK GEN] JSON PARSE FAILED:', e.message);
     console.error('[BOOK GEN] Full raw output for debugging:', rawText);
@@ -684,7 +794,12 @@ ${customPrompt ? `\n6. Additional instructions from the parent: ${customPrompt}`
     if (sanitizedType === 'title') {
       let finalPrompt = p.image_prompt;
       if (!finalPrompt || finalPrompt.length < 50) {
-        finalPrompt = `A beautiful book cover illustration in ${style} style for a children's storybook. The cover shows ${allNamesList} in a warm, heartwarming scene related to "${theme}". ${hasMultiple ? `All characters (${allNamesList}) must be visible together.` : ''} Child-friendly, vibrant, cozy.`;
+        // Include character description in title page prompt for consistency
+        const charDesc = childDescPrefix ? `${childDescPrefix}, ` : '';
+        finalPrompt = `${charDesc}${allNamesList} on a beautiful book cover in ${style} art style. The cover shows ${allNamesList} in a warm, heartwarming scene related to "${theme}". ${hasMultiple ? `All characters (${allNamesList}) must be visible together.` : ''} Child-friendly, vibrant, cozy. Art style: ${style}.`;
+      } else if (!finalPrompt.toLowerCase().includes(style.toLowerCase())) {
+        // Ensure style is mentioned in the prompt
+        finalPrompt = `${finalPrompt} Art style: ${style}.`;
       }
       return {
         ...p,
@@ -730,7 +845,27 @@ const { saveBase64, urlToDataUrl } = require('./localStorage');
  * Supports Gemini image models (via Google SDK) and OpenAI DALL-E (via Portkey).
  */
 async function generateAIImage(prompt, style = 'Watercolor') {
-  const fullPrompt = `A beautiful children's book illustration in the precise art style of: ${style}. Vibrant, child-friendly, consistent. NO text, no words, no letters in the image. SCENE DETAILS: ${prompt}. IMPORTANT: If the scene describes ONE character, show ONLY that ONE character. Do not duplicate or multiply characters. Each character should maintain consistent physical features across different illustrations.`;
+  const fullPrompt = `A beautiful children's book illustration in the precise art style of: ${style}. Vibrant, child-friendly, consistent. 
+
+CRITICAL - ABSOLUTELY NO TEXT:
+- NO text overlays, captions, or labels of any kind
+- NO words, letters, numbers, or written language
+- NO speech bubbles, thought bubbles, or dialogue
+- NO signs, banners, or text on objects
+- This is a pure illustration ONLY - text will be added separately
+- If you add ANY text, the image will be rejected
+
+CRITICAL - CHARACTER CONSISTENCY:
+- The character MUST look IDENTICAL to previous illustrations in this book
+- EXACT same clothing (colors, patterns, style) - do NOT change shirt color or add/remove items
+- EXACT same hair (color, style, length)
+- EXACT same physical features (eyes, skin tone, face shape)
+- If the prompt describes specific clothing (e.g., "black tiger shirt, blue shorts"), render it EXACTLY as described
+- Do NOT improvise or vary the character's appearance
+
+SCENE DETAILS: ${prompt}. 
+
+IMPORTANT: If the scene describes ONE character, show ONLY that ONE character. Do not duplicate or multiply characters. Each character should maintain consistent physical features across different illustrations.`;
 
   try {
     // Gemini image models — use Google SDK directly
