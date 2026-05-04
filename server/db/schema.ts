@@ -63,10 +63,12 @@ export const books = pgTable("books", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	style: text(),
 	borderStyle: text("border_style"),
+	textSize: varchar("text_size", { length: 10 }).default('md'),
 	pageCount: integer("page_count").default(10),
 	styleFilter: text("style_filter"),
 	dedicatedBy: text("dedicated_by").default('Mummy and Daddy'),
 	coverImageUrl: text("cover_image_url"),
+	font: varchar("font", { length: 50 }).default('system'),
 	isPublic: boolean("is_public").default(false),
 	embedding: vector("embedding"),
 }, (table) => [

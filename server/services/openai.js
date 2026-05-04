@@ -2,6 +2,16 @@ const OpenAI = require('openai');
 const { Portkey } = require('portkey-ai');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
+// Import centralized prompts
+const {
+  SYSTEM_PROMPT_STORY,
+  AGE_GUIDELINES,
+  MODERATION_PROMPT,
+  IMAGE_DESCRIPTION_PROMPT,
+  FEATURE_EXTRACTION_PROMPT_SINGLE,
+  IMAGE_GENERATION_PROMPT,
+} = require('../config/prompts');
+
 // During testing, apiKey might be empty until mocked
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'sk-dummy-key-for-tests' });
 const portkey = new Portkey({
@@ -17,7 +27,7 @@ const portkey = new Portkey({
 
 // Model configuration from environment (defaults to current values)
 const MODELS = {
-  textGeneration: process.env.MODEL_TEXT_GENERATION || '@gemini/gemini-2.5-flash-lite',
+  textGeneration: process.env.MODEL_TEXT_GENERATION || 'gpt-4o-mini', // Upgraded from gemini-2.5-flash-lite for better storytelling
   imageDescription: process.env.MODEL_IMAGE_DESCRIPTION || 'gpt-4o-mini',
   imageGeneration: process.env.MODEL_IMAGE_GENERATION || '@openai/gpt-image-1',
   tts: process.env.MODEL_TTS || 'tts-1',
@@ -54,25 +64,8 @@ function repairJSON(str) {
   while (openBraces > 0) { repaired += '}'; openBraces--; }
   return repaired;
 }
-const SYSTEM_PROMPT = `You are DreamWeaver, a gentle and creative bedtime storyteller for children ages 3-10.
 
-STRICT RULES — you must follow every rule with no exceptions:
-1. NEVER include violence, fighting, harm, injury, or anything scary.
-2. NEVER include villains who cause real harm, death, or distress.
-3. NEVER include adult themes, romance, or anything inappropriate for young children.
-4. NEVER use frightening imagery, monsters that cause fear, or jump-scare elements.
-5. ALWAYS give the story a warm, comforting, happy ending.
-6. ALWAYS weave in age-appropriate themes of: wonder, kindness, friendship, curiosity, nature, and playful adventures suitable for the child's age.
-7. ALWAYS end the story with the child (or animal character) feeling safe, loved, and gently drifting off to sleep.
-8. Use soft, soothing, poetic language. Write with warmth and gentleness.
-9. Keep stories age-appropriate: younger kids (3-5) need simpler words and shorter sentences; older kids (6-10) can handle richer vocabulary and gentle complexity.
-10. Keep stories to approximately 250-300 words.
-11. Write in second-person ("you") or third-person — never first-person.
-12. Incorporate ALL character names provided, the location, and the specific theme.
-13. If multiple characters are provided, the story MUST feature all of them. Show their unique friendship, teamwork, or bond. Give each character moments to shine.
-14. Write like a real published children's book — natural, flowing prose. AVOID mechanical repetition like "Hop, hop, hop!" or "Play, play, play!"
-
-Your stories should feel like a warm hug. Think friendly animals, curious exploration, cozy moments, starlit skies, and gentle adventures. Keep it playful and heartwarming, not magical or fantastical.`;
+// SYSTEM_PROMPT is now imported from prompts.js
 
 /**
  * Generate a bedtime story based on a photo description and optional details.
@@ -104,7 +97,7 @@ async function generateStory(imageDescription, childName = '', location = '', th
   const response = await portkey.chat.completions.create({
     model: MODELS.textGeneration,
     messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: SYSTEM_PROMPT_STORY },
       { role: 'user', content: userMessage },
     ],
     max_tokens: 600,
@@ -138,7 +131,7 @@ async function moderateContent(text) {
       messages: [
         {
           role: 'system',
-          content: 'You are a child safety moderator. Analyze the text for any violence, scary themes, or inappropriate content. If the text is perfectly safe for a 5-year-old, reply ONLY with the word "SAFE". If it is unsafe, reply with "UNSAFE:" followed by a brief explanation.'
+          content: MODERATION_PROMPT
         },
         { role: 'user', content: text }
       ],
@@ -177,7 +170,7 @@ async function describeImage(imageUrl) {
         content: [
           {
             type: 'text',
-            text: 'Describe this image briefly in 1-2 sentences, focusing on what you see: people, animals, places, objects, and mood. Keep it child-friendly.',
+            text: IMAGE_DESCRIPTION_PROMPT,
           },
           { type: 'image_url', image_url: { url: visionUrl, detail: 'low' } },
         ],
@@ -845,27 +838,7 @@ const { saveBase64, urlToDataUrl } = require('./localStorage');
  * Supports Gemini image models (via Google SDK) and OpenAI DALL-E (via Portkey).
  */
 async function generateAIImage(prompt, style = 'Watercolor') {
-  const fullPrompt = `A beautiful children's book illustration in the precise art style of: ${style}. Vibrant, child-friendly, consistent. 
-
-CRITICAL - ABSOLUTELY NO TEXT:
-- NO text overlays, captions, or labels of any kind
-- NO words, letters, numbers, or written language
-- NO speech bubbles, thought bubbles, or dialogue
-- NO signs, banners, or text on objects
-- This is a pure illustration ONLY - text will be added separately
-- If you add ANY text, the image will be rejected
-
-CRITICAL - CHARACTER CONSISTENCY:
-- The character MUST look IDENTICAL to previous illustrations in this book
-- EXACT same clothing (colors, patterns, style) - do NOT change shirt color or add/remove items
-- EXACT same hair (color, style, length)
-- EXACT same physical features (eyes, skin tone, face shape)
-- If the prompt describes specific clothing (e.g., "black tiger shirt, blue shorts"), render it EXACTLY as described
-- Do NOT improvise or vary the character's appearance
-
-SCENE DETAILS: ${prompt}. 
-
-IMPORTANT: If the scene describes ONE character, show ONLY that ONE character. Do not duplicate or multiply characters. Each character should maintain consistent physical features across different illustrations.`;
+  const fullPrompt = IMAGE_GENERATION_PROMPT(style, prompt);
 
   try {
     // Gemini image models — use Google SDK directly

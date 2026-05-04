@@ -45,10 +45,13 @@ router.post(
         return res.status(402).json({ error: 'Insufficient credits' });
       }
 
-      const { imageUrls, childName, childAge, location, theme, style, styleFilter, borderStyle, pageCount = 10, childFeatures, customPrompt, dedicatedBy, coverImageUrl, font } = req.body;
+      const { imageUrls, childName, childAge, location, theme, style, styleFilter, borderStyle, textSize, pageCount = 10, childFeatures, customPrompt, dedicatedBy, coverImageUrl, font } = req.body;
 
       // Validate font - default to system if invalid
       const validFont = font && FONTS.some(f => f.id === font) ? font : DEFAULT_FONT;
+      
+      // Validate text size - default to 'md' if invalid
+      const validTextSize = ['sm', 'md', 'lg'].includes(textSize) ? textSize : 'md';
 
       // User's pageCount = story pages only; total includes title + conclusion
       const totalPageCount = pageCount + 2;
@@ -76,9 +79,9 @@ router.post(
         const embedding = await generateEmbedding(`${bookTitle}. ${firstStoryContent}`);
 
         const bookRes = await client.query(
-          `INSERT INTO books (user_id, title, protagonist_name, theme, location, style, style_filter, border_style, page_count, cover_image_url, dedicated_by, font, embedding)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
-          [user.id, bookTitle, childName, theme, location, style, styleFilter, borderStyle, pageCount, coverImageUrl || null, dedicatedBy || 'Mummy and Daddy', validFont, embedding ? JSON.stringify(embedding) : null]
+          `INSERT INTO books (user_id, title, protagonist_name, theme, location, style, style_filter, border_style, text_size, page_count, cover_image_url, dedicated_by, font, embedding)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+          [user.id, bookTitle, childName, theme, location, style, styleFilter, borderStyle, validTextSize, pageCount, coverImageUrl || null, dedicatedBy || 'Mummy and Daddy', validFont, embedding ? JSON.stringify(embedding) : null]
         );
         const book = bookRes.rows[0];
 

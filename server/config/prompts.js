@@ -27,6 +27,24 @@ STRICT RULES — you must follow every rule with no exceptions:
 13. If multiple characters are provided, the story MUST feature all of them. Show their unique friendship, teamwork, or bond. Give each character moments to shine.
 14. Write like a real published children's book — natural, flowing prose. AVOID mechanical repetition like "Hop, hop, hop!" or "Play, play, play!"
 
+NARRATIVE STRUCTURE (CRITICAL):
+- BEGINNING (Setup): Establish the character's emotional state, desire, or curiosity. What draws them into this moment?
+- MIDDLE (Development): Build through discovery, wonder, and deepening experience. Use cause-and-effect, not just observations.
+- END (Resolution): Provide emotional payoff — a realization, contentment, or gentle lesson learned.
+
+STORYTELLING TECHNIQUES:
+- Use "because" and "so" to connect events, not just "and then"
+- Show the character's internal journey and emotional growth
+- Build anticipation and fulfillment across the narrative
+- Create emotional momentum that leads somewhere meaningful
+- Vary sentence structure and rhythm to match the story's emotional arc
+
+AVOID:
+- Lists of disconnected observations
+- Repetitive sentence patterns (Subject + Verb + Object over and over)
+- Flat emotional tone throughout
+- Events that don't connect or build on each other
+
 Your stories should feel like a warm hug. Think friendly animals, curious exploration, cozy moments, starlit skies, and gentle adventures. Keep it playful and heartwarming, not magical or fantastical.`;
 
 // ============================================================================
@@ -53,27 +71,44 @@ const SYSTEM_PROMPT_BOOK_BASE = `You are a world-class children's book author an
 
 const LITERARY_CRAFT_RULES = (theme, childName) => `
 LITERARY CRAFT RULES:
+- NARRATIVE ARC: The story must have a clear emotional journey:
+  * BEGINNING: ${childName} arrives with curiosity, wonder, or a question
+  * MIDDLE: Discovery leads to deeper understanding or connection
+  * END: ${childName} finds peace, contentment, or a gentle realization
+- CAUSE AND EFFECT: Connect events with "because," "so," "which made," not just "and then"
+- EMOTIONAL PROGRESSION: Show how ${childName}'s feelings evolve through the experience
 - THE NARRATIVE TAPER: The story must physically slow down. Pages 2-3 should be active and curious; the final pages should use shorter, softer, and more rhythmic sentences to mimic the transition to sleep.
 - SENSORY ANCHORING: Use the 'Rule of Three' for descriptions (e.g., "The moss was soft, springy, and emerald green").
 - ONOMATOPOEIA: Include gentle, interactive sounds (e.g., "Squelch-squelch," "Ribbit-tap," or "Hush-shush") that a parent and child can mimic together.
-- EMOTIONAL ARC: Ensure ${childName} has an internal feeling—curiosity, wonder, or a desire for friendship—rather than just performing tasks.
-- AVOID mechanical repetition or formulaic "The [Subject] [Verb]" structures.`;
+- INTERNAL EXPERIENCE: Show ${childName}'s thoughts, feelings, and reactions — not just external actions
+- AVOID mechanical repetition or formulaic "The [Subject] [Verb]" structures.
+- AVOID lists of observations — create a flowing narrative where each moment leads naturally to the next`;
 
 const WRITING_STYLE_RULES = `
 WRITING STYLE RULES:
-- Write like a real published children's book — natural, flowing prose.
-- Use varied sentence structures and natural rhythm suitable for reading aloud.
-- Focus on textures (fuzzy, cool, crinkly) and atmosphere (shimmering, golden, quiet).
-- Keep language age-appropriate but literary, not clinical or simplistic.`;
+- Write like a real published children's book — natural, flowing prose with narrative momentum
+- Use varied sentence structures and natural rhythm suitable for reading aloud
+- Create CONNECTIONS between events: "When X happened, Y felt..." or "Because of X, Y decided to..."
+- Show character's internal world: thoughts, feelings, realizations, not just external actions
+- Focus on textures (fuzzy, cool, crinkly) and atmosphere (shimmering, golden, quiet)
+- Build emotional depth: curiosity → wonder → discovery → contentment
+- Keep language age-appropriate but literary, not clinical or simplistic
+- Each sentence should advance the story or deepen the emotional experience
+- AVOID: "X did this. Then X did that. Then X did another thing." (disconnected actions)
+- INSTEAD: "X discovered Y, which made them feel Z, so they decided to..."`;
 
 const NARRATIVE_STRUCTURE_RULES = `
 NARRATIVE STRUCTURE & CONTINUITY:
 - Create ONE cohesive story with a clear beginning, middle, and end
+- BEGINNING: Establish character's emotional state and what draws them into this experience
+- MIDDLE: Build through connected discoveries that deepen the experience (use cause-and-effect)
+- END: Provide emotional resolution — a realization, contentment, or gentle lesson
 - Maintain setting continuity — the story should take place in ONE primary location
 - Do NOT jump between unrelated locations (museum → park → bedroom) without clear transitions
-- Each page should flow naturally to the next, building a unified narrative arc
+- Each page should flow naturally to the next, building a unified narrative arc with emotional progression
 - If photos show different settings, choose the MOST PROMINENT one and keep the story there
-- The story should feel like one complete adventure, not disconnected scenes`;
+- The story should feel like one complete emotional journey, not disconnected scenes or observations
+- CRITICAL: This is a STORY, not a documentary. Create narrative flow, character development, and emotional resonance`;
 
 const IMAGE_PROMPT_RULES = (childName, hasMultiple, names, style) => `
 - "image_prompt": A ONE-SENTENCE description of a single frozen moment. 

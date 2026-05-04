@@ -1,7 +1,81 @@
 const fs = require('fs');
 const path = require('path');
+const jsPDF = require('jspdf');
+
+/**
+ * Map text size selection to PDF font sizes
+ */
+const getFontSizes = (textSize) => {
+  const sizeMap = {
+    sm: { title: 24, content: 14, dedication: 10, pageNumber: 9, conclusion: 18 },
+    md: { title: 28, content: 16, dedication: 12, pageNumber: 10, conclusion: 20 },
+    lg: { title: 32, content: 18, dedication: 14, pageNumber: 11, conclusion: 22 },
+  };
+  return sizeMap[textSize] || sizeMap.md;
+};
+
+/**
+ * Draw decorative border on PDF page
+ */
+const drawBorder = (doc, borderStyle, pageWidth, pageHeight, margin) => {
+  if (!borderStyle || borderStyle === 'None') return;
+
+  const borderMargin = margin - 15;
+  const borderWidth = pageWidth - borderMargin * 2;
+  const borderHeight = pageHeight - borderMargin * 2;
+
+  doc.setLineWidth(2);
+
+  switch (borderStyle) {
+    case 'Classic':
+      doc.setDrawColor(100, 100, 100);
+      doc.rect(borderMargin, borderMargin, borderWidth, borderHeight);
+      doc.rect(borderMargin + 5, borderMargin + 5, borderWidth - 10, borderHeight - 10);
+      break;
+
+    case 'Floral':
+      doc.setDrawColor(180, 140, 220);
+      doc.setLineWidth(3);
+      doc.rect(borderMargin, borderMargin, borderWidth, borderHeight);
+      doc.setFillColor(180, 140, 220);
+      const cornerSize = 8;
+      doc.circle(borderMargin, borderMargin, cornerSize, 'F');
+      doc.circle(borderMargin + borderWidth, borderMargin, cornerSize, 'F');
+      doc.circle(borderMargin, borderMargin + borderHeight, cornerSize, 'F');
+      doc.circle(borderMargin + borderWidth, borderMargin + borderHeight, cornerSize, 'F');
+      break;
+
+    case 'Stars':
+      doc.setDrawColor(255, 215, 0);
+      doc.setLineWidth(2);
+      doc.setLineDash([10, 5]);
+      doc.rect(borderMargin, borderMargin, borderWidth, borderHeight);
+      doc.setLineDash([]);
+      doc.setFillColor(255, 215, 0);
+      const starSize = 6;
+      doc.circle(borderMargin, borderMargin, starSize, 'F');
+      doc.circle(borderMargin + borderWidth, borderMargin, starSize, 'F');
+      doc.circle(borderMargin, borderMargin + borderHeight, starSize, 'F');
+      doc.circle(borderMargin + borderWidth, borderMargin + borderHeight, starSize, 'F');
+      break;
+
+    case 'Royal':
+      doc.setDrawColor(139, 69, 19);
+      doc.setLineWidth(1);
+      doc.rect(borderMargin, borderMargin, borderWidth, borderHeight);
+      doc.rect(borderMargin + 3, borderMargin + 3, borderWidth - 6, borderHeight - 6);
+      doc.setLineWidth(2);
+      doc.rect(borderMargin + 7, borderMargin + 7, borderWidth - 14, borderHeight - 14);
+      break;
+
+    default:
+      break;
+  }
+};
 
 async function handlePrint(book) {
+    const fontSizes = getFontSizes(book.text_size);
+    
     const doc = new jsPDF('p', 'pt', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -45,23 +119,17 @@ async function handlePrint(book) {
         return 'PNG';
     };
 
+    // Note: Server-side PDF generation would need to fetch images differently
+    // This is a placeholder - actual implementation would need axios or similar
     const fetchImageAsBase64 = async (url) => {
-        try {
-            const result = await booksAPI.proxyImage(url);
-            return result.data;
-        } catch (err) {
-            console.error('Failed to load image:', url, err);
-            return null;
-        }
+        // TODO: Implement server-side image fetching
+        console.warn('Server-side image fetching not implemented');
+        return null;
     };
 
     const getImageDimensions = (base64) => {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => resolve({ width: img.width, height: img.height });
-            img.onerror = () => resolve({ width: 100, height: 100 });
-            img.src = base64;
-        });
+        // TODO: Implement server-side image dimension detection
+        return { width: 100, height: 100 };
     };
 
     const imgInfos = await Promise.all(book.pages.map(async (p) => {
@@ -69,7 +137,7 @@ async function handlePrint(book) {
         if (!imgUrl) return null;
         const b64 = await fetchImageAsBase64(imgUrl);
         if (!b64) return null;
-        const dims = await getImageDimensions(b64);
+        const dims = getImageDimensions(b64);
         return { b64, ...dims };
     }));
 
@@ -78,6 +146,9 @@ async function handlePrint(book) {
         const imgInfo = imgInfos[i];
 
         if (i > 0) doc.addPage();
+
+        // Draw border first (so it's behind content)
+        drawBorder(doc, book.border_style, pageWidth, pageHeight, margin);
 
         if (page.type === 'title') {
             let titleYOffset = margin + 20;
@@ -97,7 +168,7 @@ async function handlePrint(book) {
                 titleYOffset = margin + 20 + targetH + 40;
             }
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(28);
+            doc.setFontSize(fontSizes.title);
             doc.setTextColor(50, 50, 50);
             const titleY = imgInfo ? titleYOffset : pageHeight / 2 - 40;
             const titleLines = doc.splitTextToSize(page.content, contentWidth);
@@ -108,13 +179,13 @@ async function handlePrint(book) {
 
             if (page.dedication) {
                 doc.setFont('helvetica', 'italic');
-                doc.setFontSize(12);
+                doc.setFontSize(fontSizes.dedication);
                 doc.setTextColor(140, 140, 140);
                 doc.text(page.dedication, pageWidth / 2, titleY + 45, { align: 'center' });
             }
         } else if (page.type === 'conclusion') {
             doc.setFont('helvetica', 'italic');
-            doc.setFontSize(20);
+            doc.setFontSize(fontSizes.conclusion);
             doc.setTextColor(80, 80, 80);
             const endLines = doc.splitTextToSize(page.content, contentWidth);
             doc.text(endLines, pageWidth / 2, pageHeight / 2, { align: 'center', maxWidth: contentWidth, lineHeightFactor: 1.6 });
@@ -137,13 +208,13 @@ async function handlePrint(book) {
             }
 
             doc.setFont('helvetica', 'italic');
-            doc.setFontSize(16);
+            doc.setFontSize(fontSizes.content);
             doc.setTextColor(60, 60, 60);
             const textLines = doc.splitTextToSize(page.content, contentWidth);
             doc.text(textLines, margin, textStartY, { maxWidth: contentWidth, lineHeightFactor: 1.6 });
 
             doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10);
+            doc.setFontSize(fontSizes.pageNumber);
             doc.setTextColor(160, 160, 160);
             doc.text(`Page ${page.page_number}`, pageWidth / 2, pageHeight - 30, { align: 'center' });
         }

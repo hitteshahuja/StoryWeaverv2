@@ -93,3 +93,9 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS consent_privacy BOOLEAN DEFAULT FALSE
 ALTER TABLE users ADD COLUMN IF NOT EXISTS consent_timestamp TIMESTAMPTZ;
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_cancel_at_period_end BOOLEAN DEFAULT FALSE;
+
+-- Migration: purchased fonts (comma-separated font IDs owned by the user)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS purchased_fonts TEXT DEFAULT '';
+
+-- Migration: add text_size to books (for PDF font size selection)
+ALTER TABLE books ADD COLUMN IF NOT EXISTS text_size VARCHAR(10) DEFAULT 'md';

@@ -32,6 +32,7 @@ export const books = pgTable("books", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	style: text(),
 	borderStyle: text("border_style"),
+	textSize: text("text_size").default('md'),
 	pageCount: integer("page_count").default(10),
 	styleFilter: text("style_filter"),
 	dedicatedBy: text("dedicated_by").default('Mummy and Daddy'),
@@ -86,7 +87,8 @@ export const users = pgTable("users", {
 	consentVoice: boolean("consent_voice").default(false),
 	consentPrivacy: boolean("consent_privacy").default(false),
 	consentTimestamp: timestamp("consent_timestamp", { mode: 'string' }),
-	subscriptionCancelAtPeriodEnd: boolean("subscription_cancel_at_period_end").default(false)
+	subscriptionCancelAtPeriodEnd: boolean("subscription_cancel_at_period_end").default(false),
+	purchasedFonts: text("purchased_fonts").default(''),
 }, (table) => [
 	index("idx_users_clerk_id").using("btree", table.clerkId.asc().nullsLast().op("text_ops")),
 	unique("users_clerk_id_key").on(table.clerkId),

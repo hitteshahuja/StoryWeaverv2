@@ -4,6 +4,85 @@ import { getFontById } from '../config/fonts';
 import logo from '../assets/dreamweaverlogo3.png';
 
 /**
+ * Map text size selection to PDF font sizes
+ */
+const getFontSizes = (textSize) => {
+  const sizeMap = {
+    sm: { title: 24, content: 14, dedication: 10, pageNumber: 9, conclusion: 18 },
+    md: { title: 28, content: 16, dedication: 12, pageNumber: 10, conclusion: 20 },
+    lg: { title: 32, content: 18, dedication: 14, pageNumber: 11, conclusion: 22 },
+  };
+  return sizeMap[textSize] || sizeMap.md;
+};
+
+/**
+ * Draw decorative border on PDF page
+ */
+const drawBorder = (doc, borderStyle, pageWidth, pageHeight, margin) => {
+  if (!borderStyle || borderStyle === 'None') return;
+
+  const borderMargin = margin - 15; // Border sits 15pt outside content margin
+  const borderWidth = pageWidth - borderMargin * 2;
+  const borderHeight = pageHeight - borderMargin * 2;
+
+  doc.setLineWidth(2);
+
+  switch (borderStyle) {
+    case 'Classic':
+      // Simple double rectangle
+      doc.setDrawColor(100, 100, 100);
+      doc.rect(borderMargin, borderMargin, borderWidth, borderHeight);
+      doc.rect(borderMargin + 5, borderMargin + 5, borderWidth - 10, borderHeight - 10);
+      break;
+
+    case 'Floral':
+      // Ornate floral-style border with corner decorations
+      doc.setDrawColor(180, 140, 220);
+      doc.setLineWidth(3);
+      doc.rect(borderMargin, borderMargin, borderWidth, borderHeight);
+      
+      // Corner decorations (small circles)
+      doc.setFillColor(180, 140, 220);
+      const cornerSize = 8;
+      doc.circle(borderMargin, borderMargin, cornerSize, 'F');
+      doc.circle(borderMargin + borderWidth, borderMargin, cornerSize, 'F');
+      doc.circle(borderMargin, borderMargin + borderHeight, cornerSize, 'F');
+      doc.circle(borderMargin + borderWidth, borderMargin + borderHeight, cornerSize, 'F');
+      break;
+
+    case 'Stars':
+      // Dashed border with star-like pattern
+      doc.setDrawColor(255, 215, 0);
+      doc.setLineWidth(2);
+      doc.setLineDash([10, 5]);
+      doc.rect(borderMargin, borderMargin, borderWidth, borderHeight);
+      doc.setLineDash([]); // Reset dash pattern
+      
+      // Add small stars in corners
+      doc.setFillColor(255, 215, 0);
+      const starSize = 6;
+      doc.circle(borderMargin, borderMargin, starSize, 'F');
+      doc.circle(borderMargin + borderWidth, borderMargin, starSize, 'F');
+      doc.circle(borderMargin, borderMargin + borderHeight, starSize, 'F');
+      doc.circle(borderMargin + borderWidth, borderMargin + borderHeight, starSize, 'F');
+      break;
+
+    case 'Royal':
+      // Elegant triple-line border
+      doc.setDrawColor(139, 69, 19); // Brown/gold color
+      doc.setLineWidth(1);
+      doc.rect(borderMargin, borderMargin, borderWidth, borderHeight);
+      doc.rect(borderMargin + 3, borderMargin + 3, borderWidth - 6, borderHeight - 6);
+      doc.setLineWidth(2);
+      doc.rect(borderMargin + 7, borderMargin + 7, borderWidth - 14, borderHeight - 14);
+      break;
+
+    default:
+      break;
+  }
+};
+
+/**
  * Generates a PDF for a selected book and triggers a download.
  * @param {Object} selectedBook - The book object containing details and pages.
  */
@@ -12,6 +91,7 @@ export const handlePrint = async (selectedBook) => {
 
   const fontConfig = getFontById(selectedBook.font);
   const pdfFont = fontConfig.pdf || 'helvetica';
+  const fontSizes = getFontSizes(selectedBook.text_size);
   
   const doc = new jsPDF('p', 'pt', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -99,6 +179,9 @@ export const handlePrint = async (selectedBook) => {
 
     if (i > 0) doc.addPage();
 
+    // Draw border first (so it's behind content)
+    drawBorder(doc, selectedBook.border_style, pageWidth, pageHeight, margin);
+
     if (page.type === 'title') {
       let titleYOffset = margin + 20;
       if (imgInfo) {
@@ -117,7 +200,7 @@ export const handlePrint = async (selectedBook) => {
         titleYOffset = margin + 20 + targetH + 40;
       }
       doc.setFont(pdfFont, 'bold');
-      doc.setFontSize(28);
+      doc.setFontSize(fontSizes.title);
       doc.setTextColor(50, 50, 50);
       const titleY = imgInfo ? titleYOffset : pageHeight / 2 - 40;
       const titleLines = doc.splitTextToSize(page.content, contentWidth);
@@ -125,6 +208,19 @@ export const handlePrint = async (selectedBook) => {
       doc.setDrawColor(180, 140, 220);
       doc.setLineWidth(2);
       doc.line(pageWidth / 2 - 40, titleY + 20, pageWidth / 2 + 40, titleY + 20);
+      
+      if (page.dedication) {
+        doc.setFont(pdfFont, 'italic');
+        doc.setFontSize(fontSizes.dedication);
+        doc.setTextColor(140, 140, 140);
+        doc.text(page.dedication, pageWidth / 2, titleY + 45, { align: 'center' });
+      }
+    } else if (page.type === 'conclusion') {
+      doc.setFont(pdfFont, 'italic');
+      doc.setFontSize(fontSizes.conclusion);
+      doc.setTextColor(80, 80, 80);
+      const endLines = doc.splitTextToSize(page.content, contentWidth);
+      doc.text(endLines, pageWidth / 2, pageHeight / 2, { align: 'center', maxWidth: contentWidth, lineHeightFactor: 1.6 });
     } else {
       let textStartY = margin + 40;
       if (imgInfo) {
@@ -144,13 +240,13 @@ export const handlePrint = async (selectedBook) => {
       }
 
       doc.setFont(pdfFont, 'italic');
-      doc.setFontSize(16);
+      doc.setFontSize(fontSizes.content);
       doc.setTextColor(60, 60, 60);
       const textLines = doc.splitTextToSize(page.content, contentWidth);
       doc.text(textLines, margin, textStartY, { maxWidth: contentWidth, lineHeightFactor: 1.6 });
 
       doc.setFont(pdfFont, 'normal');
-      doc.setFontSize(10);
+      doc.setFontSize(fontSizes.pageNumber);
       doc.setTextColor(160, 160, 160);
       doc.text(`Page ${page.page_number}`, pageWidth / 2, pageHeight - 30, { align: 'center' });
     }
