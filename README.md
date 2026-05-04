@@ -1,4 +1,4 @@
-# 🌙 DreamWeaver
+# 🌙 AI DreamWeaver
 
 AI-powered bedtime story generator for children. Upload a photo → get a personalised, family-safe bedtime story in seconds.
 
