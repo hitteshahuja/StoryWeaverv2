@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
-const jsPDF = require('jspdf');
+// Note: jsPDF is a client-side library and cannot be used on the server
+// This file is kept for reference but is not currently functional
+// PDF generation happens client-side in client/src/utils/printHelpers.js
 
 /**
  * Map text size selection to PDF font sizes
