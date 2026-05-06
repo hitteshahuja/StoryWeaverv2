@@ -38,12 +38,22 @@ STORYTELLING TECHNIQUES:
 - Build anticipation and fulfillment across the narrative
 - Create emotional momentum that leads somewhere meaningful
 - Vary sentence structure and rhythm to match the story's emotional arc
+- ONE sound effect per page maximum - integrate it naturally into the prose
 
-AVOID:
-- Lists of disconnected observations
-- Repetitive sentence patterns (Subject + Verb + Object over and over)
-- Flat emotional tone throughout
-- Events that don't connect or build on each other
+CRITICAL - AVOID THESE COMMON MISTAKES:
+❌ Lists of disconnected observations: "The X is Y. The A is B. The C is D."
+❌ Repetitive sentence patterns: "Subject + Verb + Object" over and over
+❌ Mechanical repetition: "Shake, shake, shake! Swish-swish! Cling, clang, tap!"
+❌ Flat emotional tone throughout with no progression
+❌ Events that don't connect or build on each other
+❌ Describing the scene without showing the character's experience of it
+
+INSTEAD, DO THIS:
+✅ Integrate descriptions into action and emotion
+✅ Show WHY characters do things, not just WHAT they do
+✅ Connect each moment to the next with cause-and-effect
+✅ Build emotional depth through the character's internal experience
+✅ Use sound effects sparingly and naturally (one per page max)
 
 Your stories should feel like a warm hug. Think friendly animals, curious exploration, cozy moments, starlit skies, and gentle adventures. Keep it playful and heartwarming, not magical or fantastical.`;
 
@@ -76,13 +86,24 @@ LITERARY CRAFT RULES:
   * MIDDLE: Discovery leads to deeper understanding or connection
   * END: ${childName} finds peace, contentment, or a gentle realization
 - CAUSE AND EFFECT: Connect events with "because," "so," "which made," not just "and then"
+  * BAD: "Maya holds a toy. The beads go swish. Maya smiles."
+  * GOOD: "Maya discovered a bright maraca. When she shook it, the beads danced inside with a cheerful swish that made her smile."
 - EMOTIONAL PROGRESSION: Show how ${childName}'s feelings evolve through the experience
+  * Show WHY they do things, not just WHAT they do
+  * Include their thoughts, reactions, and realizations
 - THE NARRATIVE TAPER: The story must physically slow down. Pages 2-3 should be active and curious; the final pages should use shorter, softer, and more rhythmic sentences to mimic the transition to sleep.
 - SENSORY ANCHORING: Use the 'Rule of Three' for descriptions (e.g., "The moss was soft, springy, and emerald green").
-- ONOMATOPOEIA: Include gentle, interactive sounds (e.g., "Squelch-squelch," "Ribbit-tap," or "Hush-shush") that a parent and child can mimic together.
+- ONOMATOPOEIA: Use sparingly and naturally - ONE sound effect per page maximum
+  * BAD: "Shake, shake, shake! Swish-swish. Cling, clang, tap! Tap, tap, hum."
+  * GOOD: "The maraca made a gentle swish as Maya shook it."
 - INTERNAL EXPERIENCE: Show ${childName}'s thoughts, feelings, and reactions — not just external actions
+  * BAD: "Maya hits a bell. The sound is clear. Maya spins around."
+  * GOOD: "Maya wondered what the green bell would sound like. When she tapped it, the clear, sweet note made her want to spin and dance."
 - AVOID mechanical repetition or formulaic "The [Subject] [Verb]" structures.
-- AVOID lists of observations — create a flowing narrative where each moment leads naturally to the next`;
+- AVOID lists of observations — create a flowing narrative where each moment leads naturally to the next
+- INTEGRATE descriptions into action rather than listing them separately
+  * BAD: "The bear is fuzzy. The rug is warm. The dog is golden. Maya smiles."
+  * GOOD: "Maya's fuzzy bear watched from the warm rug while the golden dog wagged his tail in time with her music."`;
 
 const WRITING_STYLE_RULES = `
 WRITING STYLE RULES:
@@ -94,8 +115,24 @@ WRITING STYLE RULES:
 - Build emotional depth: curiosity → wonder → discovery → contentment
 - Keep language age-appropriate but literary, not clinical or simplistic
 - Each sentence should advance the story or deepen the emotional experience
-- AVOID: "X did this. Then X did that. Then X did another thing." (disconnected actions)
-- INSTEAD: "X discovered Y, which made them feel Z, so they decided to..."`;
+
+CRITICAL - AVOID THESE PATTERNS:
+❌ "X did this. Then X did that. Then X did another thing." (disconnected actions)
+❌ "The [noun] is [adjective]. The [noun] is [adjective]." (list of descriptions)
+❌ "Verb, verb, verb! Sound-sound-sound!" (mechanical repetition)
+❌ Starting multiple sentences with "The" in a row
+
+INSTEAD, USE THESE PATTERNS:
+✅ "X discovered Y, which made them feel Z, so they decided to..."
+✅ "When X happened, Y's heart [emotion], because..."
+✅ "X wondered about Y. As they explored, they realized..."
+✅ Integrate descriptions into action: "X's fuzzy bear watched from the warm rug"
+
+EXAMPLES OF GOOD WRITING:
+"Maya discovered a bright maraca on the shelf. When she shook it, the beads danced inside with a cheerful swish that made her smile. The sound was so delightful that she wanted to make more music, so she reached for the green bell."
+
+EXAMPLES OF BAD WRITING:
+"Maya holds a bright toy. The beads go swish-swish. Maya has a big smile. The bear sits on the rug. The rug is warm. Maya is happy."`;
 
 const NARRATIVE_STRUCTURE_RULES = `
 NARRATIVE STRUCTURE & CONTINUITY:
@@ -185,6 +222,16 @@ CRITICAL - ABSOLUTELY NO TEXT:
 - This is a pure illustration ONLY - text will be added separately
 - If you add ANY text, the image will be rejected
 
+CRITICAL - ART STYLE CONSISTENCY:
+- This illustration is part of a multi-page children's book
+- ALL illustrations in this book MUST use the EXACT SAME "${style}" art style
+- Maintain IDENTICAL visual treatment: same rendering technique, same level of detail, same color palette approach, same lighting style
+- If "${style}" is 3D/Pixar-style: Use consistent 3D rendering, realistic lighting, depth of field, and volumetric quality on EVERY page
+- If "${style}" is 2D/illustrated: Use consistent flat or painterly rendering, same brush technique, same color saturation on EVERY page
+- DO NOT switch between 3D and 2D rendering styles mid-book
+- DO NOT vary the level of realism or stylization between pages
+- The visual style should be so consistent that all pages look like they came from the same artist
+
 CRITICAL - CHARACTER CONSISTENCY:
 - The character MUST look IDENTICAL to previous illustrations in this book
 - EXACT same clothing (colors, patterns, style) - do NOT change shirt color or add/remove items
@@ -193,14 +240,11 @@ CRITICAL - CHARACTER CONSISTENCY:
 - If the prompt describes specific clothing (e.g., "black tiger shirt, blue shorts"), render it EXACTLY as described
 - Do NOT improvise or vary the character's appearance
 
-CRITICAL - ART STYLE CONSISTENCY:
-- Apply the "${style}" art style to this illustration
-- Maintain consistent visual style with other illustrations in this book
-- Do NOT use a different art style or technique
-
 SCENE DETAILS: ${prompt}. 
 
-IMPORTANT: If the scene describes ONE character, show ONLY that ONE character. Do not duplicate or multiply characters. Each character should maintain consistent physical features across different illustrations.`;
+IMPORTANT: If the scene describes ONE character, show ONLY that ONE character. Do not duplicate or multiply characters. Each character should maintain consistent physical features across different illustrations.
+
+STYLE REFERENCE: "${style}" - Apply this EXACT visual style with complete consistency. Every illustration should look like it belongs to the same book by the same artist.`;
 
 // ============================================================================
 // CONTENT MODERATION PROMPTS

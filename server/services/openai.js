@@ -836,9 +836,17 @@ const { saveBase64, urlToDataUrl } = require('./localStorage');
 /**
  * Generate a brand-new AI image based on a prompt.
  * Supports Gemini image models (via Google SDK) and OpenAI DALL-E (via Portkey).
+ * @param {string} prompt - The image description
+ * @param {string} style - The art style (e.g., 'Pixar-style', 'Watercolor')
+ * @param {number} seed - Optional seed for consistency across images in the same book
  */
-async function generateAIImage(prompt, style = 'Watercolor') {
+async function generateAIImage(prompt, style = 'Watercolor', seed = null) {
   const fullPrompt = IMAGE_GENERATION_PROMPT(style, prompt);
+  
+  // Add seed to prompt for consistency if provided
+  const promptWithSeed = seed 
+    ? `${fullPrompt}\n\nSTYLE CONSISTENCY SEED: ${seed} - Use this seed to maintain visual consistency with other illustrations in this book.`
+    : fullPrompt;
 
   try {
     // Gemini image models — use Google SDK directly
@@ -846,14 +854,13 @@ async function generateAIImage(prompt, style = 'Watercolor') {
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
       const modelName = MODELS.imageGeneration.replace(/^@[^/]+\//, '');
       const model = genAI.getGenerativeModel({ model: modelName });
-      console.log
-('[IMAGE GEN] Generating with Gemini:', modelName);
+      console.log('[IMAGE GEN] Generating with Gemini:', modelName, seed ? `(Seed: ${seed})` : '');
       let attempts = 0;
       const maxAttempts = 3;
 
       while (attempts < maxAttempts) {
         try {
-          const result = await model.generateContent(fullPrompt);
+          const result = await model.generateContent(promptWithSeed);
           const response = await result.response;
           const parts = response.candidates?.[0]?.content?.parts;
 
@@ -883,7 +890,7 @@ async function generateAIImage(prompt, style = 'Watercolor') {
     // OpenAI DALL-E uses images.generate via Portkey
     const response = await portkey.images.generate({
       model: MODELS.imageGeneration,
-      prompt: fullPrompt,
+      prompt: promptWithSeed,
       response_format: 'b64_json',
     });
 
