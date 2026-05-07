@@ -29,7 +29,7 @@ const PLANS = [
     name: 'Premium',
     price: '£7.99',
     period: '/month',
-    description: 'The full bedtime experience',
+    description: 'The full story experience',
     credits: '15 credits/month',
     cta: 'Start Premium',
     type: 'subscription',

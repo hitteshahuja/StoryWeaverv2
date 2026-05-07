@@ -160,8 +160,15 @@ const IMAGE_PROMPT_RULES = (childName, hasMultiple, names, style) => `
      - Distinctive features: [glasses, freckles, dimples, etc. from extracted features]
      DO NOT change clothing colors, patterns, or styles between pages. DO NOT add or remove accessories. The character must be visually identical across all illustrations.
   4. ${hasMultiple ? `CHARACTER COUNT: Show ALL ${names.length} characters together.` : `CHARACTER COUNT: Show ONLY ${childName}.`}
-  5. SIZE & SCALE CONSISTENCY: If an object is described as "giant", "huge", "towering", or "massive" in one page, it MUST remain that size in ALL subsequent pages. Do NOT make a giant frog suddenly small or a towering statue suddenly tiny. Maintain relative proportions throughout the story. If the child is looking UP at something, it should stay large enough to look up at.
-  6. ART STYLE CONSISTENCY: The art style "${style}" MUST be applied to ALL illustrations INCLUDING THE TITLE PAGE. Every page should have the same visual style. Do NOT use a different style for the cover/title page.`;
+  5. OBJECT & PROP CONSISTENCY - CRITICAL: If a specific object appears in the story (toy truck, stuffed animal, musical instrument, hat, etc.), it MUST maintain IDENTICAL appearance across ALL pages where it appears:
+     - Colors: If a truck is green and blue on page 1, it MUST be green and blue on ALL subsequent pages
+     - Design: If a toy has specific features (dump truck bed, wheels, patterns), maintain those EXACT features
+     - DO NOT introduce new objects that weren't mentioned in previous pages
+     - DO NOT change object colors, shapes, or designs between pages
+     - If an object is described on page 1 (e.g., "green and blue toy truck"), include that EXACT description in image_prompts for ALL pages where it appears
+     - Track ALL recurring objects and maintain their visual identity throughout the entire story
+  6. SIZE & SCALE CONSISTENCY: If an object is described as "giant", "huge", "towering", or "massive" in one page, it MUST remain that size in ALL subsequent pages. Do NOT make a giant frog suddenly small or a towering statue suddenly tiny. Maintain relative proportions throughout the story. If the child is looking UP at something, it should stay large enough to look up at.
+  7. ART STYLE CONSISTENCY: The art style "${style}" MUST be applied to ALL illustrations INCLUDING THE TITLE PAGE. Every page should have the same visual style. Do NOT use a different style for the cover/title page.`;
 
 // ============================================================================
 // USER MESSAGE TEMPLATES
@@ -191,7 +198,17 @@ VISUAL CONSISTENCY RULES:
 - If something is "giant", "huge", "towering", or "massive" on one page, it stays that size on ALL pages
 - Do NOT make a giant frog suddenly small, or a towering statue suddenly tiny
 - Keep relative proportions consistent: if the child looks UP at something, it should remain large enough to look up at
-- Important objects (statues, animals, landmarks) should maintain their visual prominence across all illustrations`;
+- Important objects (statues, animals, landmarks) should maintain their visual prominence across all illustrations
+
+OBJECT & PROP CONSISTENCY - CRITICAL:
+- Track ALL recurring objects (toys, animals, instruments, accessories) and maintain their EXACT appearance across pages
+- If a toy truck is green and blue on page 1, it MUST be green and blue on ALL pages
+- If a character has a stuffed bear, it must look the same in every illustration
+- DO NOT introduce random new objects (hats, toys, accessories) that weren't mentioned in the story
+- DO NOT change object colors, patterns, or designs between pages
+- When describing objects in image_prompts, use the EXACT SAME description from the first page where they appeared
+- Example: If page 1 says "green and blue toy dump truck", ALL subsequent pages must say "green and blue toy dump truck"
+- This applies to: toys, stuffed animals, musical instruments, accessories, vehicles, and any other props`;
 
 const CHARACTER_APPEARANCE_CONSISTENCY_RULES = (childName) => `
 CHARACTER APPEARANCE CONSISTENCY - ABSOLUTELY CRITICAL:
