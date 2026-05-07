@@ -10,6 +10,7 @@ const usersRouter = require('./routes/users');
 const stripeRouter = require('./routes/stripe');
 const uploadRouter = require('./routes/upload');
 const booksRouter = require('./routes/books');
+const adminRouter = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -95,6 +96,7 @@ app.use('/api/users', usersRouter);
 app.use('/api/stripe', stripeRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/books', booksRouter);
+app.use('/api/admin', adminRouter);
 
 // ─── Serve static files ──────────────────────────────────────
 const { TEMP_DIR } = require('./services/localStorage');

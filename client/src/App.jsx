@@ -7,6 +7,7 @@ import LandingPage from './pages/LandingPage';
 import AppPage from './pages/AppPage';
 import LibraryPage from './pages/LibraryPage';
 import DashboardPage from './pages/DashboardPage';
+import AdminPage from './pages/AdminPage';
 import InitialSetupModal from './components/InitialSetupModal';
 import ParentalConsentGate from './components/ParentalConsentGate';
 import PrivacyPolicy from './components/PrivacyPolicy';
@@ -40,6 +41,7 @@ export default function App() {
                     <Route path="/app" element={<AppPage />} />
                     <Route path="/library" element={<LibraryPage />} />
                     <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route path="/admin" element={<AdminPage />} />
                     <Route path="/pricing" element={<Navigate to="/" replace />} />
                     <Route path="/privacy" element={<PrivacyPolicy />} />
                   </Routes>

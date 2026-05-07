@@ -1,13 +1,37 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { SignInButton, SignOutButton, useAuth, UserButton } from '@clerk/clerk-react';
 import { useDbUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeProvider';
 import { Sparkles, BookOpen, LayoutDashboard, Moon, Sun, Shield } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { adminAPI } from '../lib/api';
 import logo from '../assets/dreamweaverlogo3.png';
+
 export default function Navbar() {
   const { isSignedIn } = useAuth();
   const { dbUser } = useDbUser();
   const { theme, toggleTheme } = useTheme();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check admin status when user signs in
+  useEffect(() => {
+    if (!isSignedIn) {
+      setIsAdmin(false);
+      return;
+    }
+
+    const checkAdminStatus = async () => {
+      try {
+        const result = await adminAPI.verify();
+        setIsAdmin(result.isAdmin === true);
+      } catch (error) {
+        // Not an admin or API call failed
+        setIsAdmin(false);
+      }
+    };
+
+    checkAdminStatus();
+  }, [isSignedIn]);
 
   return (
     <nav className="sticky top-0 z-50 border-b border-gray-200 dark:border-white/10 bg-white/80 dark:bg-night-950/80 backdrop-blur-xl transition-colors duration-300">
@@ -33,6 +57,9 @@ export default function Navbar() {
                 <NavLink to="/app" icon={<Sparkles className="w-4 h-4" />}>Generate</NavLink>
                 <NavLink to="/library" icon={<BookOpen className="w-4 h-4" />}>Library</NavLink>
                 <NavLink to="/dashboard" icon={<LayoutDashboard className="w-4 h-4" />}>Dashboard</NavLink>
+                {isAdmin && (
+                  <NavLink to="/admin" icon={<Shield className="w-4 h-4" />}>Admin</NavLink>
+                )}
               </>
             )}
             <NavLink to="/privacy" icon={<Shield className="w-4 h-4" />}>Privacy</NavLink>
@@ -64,7 +91,7 @@ export default function Navbar() {
                     Logout
                   </button>
                 </SignOutButton>
-                <UserButton afterSignOutUrl="/" />
+                <UserButton />
               </div>
             ) : (
               <SignInButton mode="modal">

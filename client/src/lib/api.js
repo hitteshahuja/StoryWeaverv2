@@ -85,4 +85,19 @@ export const stripeAPI = {
   getSubscriptionStatus: () => api.get('/api/stripe/subscription-status').then((r) => r.data),
 };
 
+export const adminAPI = {
+  verify: () => api.get('/api/admin/verify').then((r) => r.data),
+  searchUsers: (query, page = 1, limit = 20) => {
+    const params = new URLSearchParams({ page, limit });
+    if (query) params.append('search', query);
+    return api.get(`/api/admin/users?${params}`).then((r) => r.data);
+  },
+  adjustCredits: (userId, amount, reason) => api.post(`/api/admin/users/${userId}/credits`, { amount, reason }).then((r) => r.data),
+  getAuditLog: (page = 1, limit = 50, userId = null) => {
+    const params = new URLSearchParams({ page, limit });
+    if (userId) params.append('userId', userId);
+    return api.get(`/api/admin/audit-log?${params}`).then((r) => r.data);
+  },
+};
+
 export default api;
