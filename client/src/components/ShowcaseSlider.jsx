@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 const SHOWCASE_STORIES = [
   {
     id: 1,
-    title: "Maya's & Rohan's Enchanged forest adventures",
+    title: "Maya's & Rohan's Enchanted forest adventures",
     description: "A curious puppy discovers a hidden world of friendly woodland creatures",
     image: '/showcase/slides_image_1.png',
     theme: 'Space Adventure',
