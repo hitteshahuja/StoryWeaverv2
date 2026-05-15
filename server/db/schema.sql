@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS billing_history (
   user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
   stripe_payment_intent TEXT,
   amount INTEGER,
-  type TEXT CHECK (type IN ('subscription', 'topup', 'trial')),
+  type TEXT CHECK (type IN ('subscription', 'topup', 'trial', 'admin_adjustment')),
   description TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -99,3 +99,19 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS purchased_fonts TEXT DEFAULT '';
 
 -- Migration: add text_size to books (for PDF font size selection)
 ALTER TABLE books ADD COLUMN IF NOT EXISTS text_size VARCHAR(10) DEFAULT 'md';
+
+-- Migration: add admin_audit_log table
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+  id SERIAL PRIMARY KEY,
+  admin_email TEXT NOT NULL,
+  target_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  action_type TEXT NOT NULL,
+  action_details TEXT,
+  previous_value TEXT,
+  new_value TEXT,
+  timestamp TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_admin_email ON admin_audit_log(admin_email);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_target_user ON admin_audit_log(target_user_id);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_timestamp ON admin_audit_log(timestamp);

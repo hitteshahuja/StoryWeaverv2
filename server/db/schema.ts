@@ -48,7 +48,7 @@ export const billingHistory = pgTable("billing_history", {
 		foreignColumns: [users.id],
 		name: "billing_history_user_id_fkey"
 	}).onDelete("cascade"),
-	check("billing_history_type_check", sql`type = ANY (ARRAY['subscription'::text, 'topup'::text, 'trial'::text])`),
+	check("billing_history_type_check", sql`type = ANY (ARRAY['subscription'::text, 'topup'::text, 'trial'::text, 'admin_adjustment'::text])`),
 ]);
 
 
@@ -110,4 +110,24 @@ export const authors = pgTable('authors', {
 	bio: text('bio'),
 	createdAt: timestamp('created_at').defaultNow(),
 });
-// Add the new column
+
+// Admin Audit Log Table
+export const adminAuditLog = pgTable("admin_audit_log", {
+	id: serial().primaryKey().notNull(),
+	adminEmail: text("admin_email").notNull(),
+	targetUserId: integer("target_user_id"),
+	actionType: text("action_type").notNull(),
+	actionDetails: text("action_details"),
+	previousValue: text("previous_value"),
+	newValue: text("new_value"),
+	timestamp: timestamp("timestamp", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_admin_audit_admin_email").using("btree", table.adminEmail.asc().nullsLast().op("text_ops")),
+	index("idx_admin_audit_target_user").using("btree", table.targetUserId.asc().nullsLast().op("int4_ops")),
+	index("idx_admin_audit_timestamp").using("btree", table.timestamp.asc().nullsLast()),
+	foreignKey({
+		columns: [table.targetUserId],
+		foreignColumns: [users.id],
+		name: "admin_audit_log_target_user_id_fkey"
+	}).onDelete("cascade"),
+]);
